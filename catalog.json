@@ -338,6 +338,19 @@
       "logo": "logos/giphy.png",
       "tags": ["fun", "media", "gif"],
       "featured": true
+    },
+    {
+      "id": "ppt-generation",
+      "name": "ppt-generation",
+      "display_name": "PPT Generation",
+      "description": "Create professional presentations with AI-generated slide images. 8 visual styles from glassmorphism to Apple keynote.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/ppt-generation",
+      "logo": "logos/astralform.png",
+      "tags": ["presentation", "design"],
+      "featured": true
     }
   ]
 }
