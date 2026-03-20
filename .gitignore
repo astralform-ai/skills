@@ -1,1 +1,24 @@
+# macOS
 .DS_Store
+._*
+
+# Editors
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Thumbnails
+Thumbs.db
+
+# Node (if scripts added later)
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# Temp files
+*.tmp
+*.bak
