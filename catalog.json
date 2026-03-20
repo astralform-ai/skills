@@ -11,7 +11,7 @@
       "author": "Astralform",
       "type": "internal",
       "path": "skills/orchestrator-guide",
-      "logo": "logos/astralform.jpg",
+      "logo": "logos/astralform.png",
       "tags": ["orchestration", "multi-agent"],
       "featured": true
     },
@@ -24,7 +24,7 @@
       "author": "Astralform",
       "type": "internal",
       "path": "skills/deep-research",
-      "logo": "logos/astralform.jpg",
+      "logo": "logos/astralform.png",
       "tags": ["research", "web"],
       "featured": true
     },
@@ -54,7 +54,7 @@
       "repo": "anthropics/skills",
       "path": "skills/frontend-design",
       "ref": "main",
-      "logo": "logos/anthropic.webp",
+      "logo": "logos/anthropic.png",
       "tags": ["design", "frontend"],
       "featured": true
     },
@@ -84,7 +84,7 @@
       "repo": "tavily-ai/skills",
       "path": "skills/tavily-search",
       "ref": "main",
-      "logo": "logos/tavily.jpg",
+      "logo": "logos/tavily.png",
       "tags": ["search", "web"],
       "featured": true
     },
@@ -99,7 +99,7 @@
       "repo": "tavily-ai/skills",
       "path": "skills/tavily-research",
       "ref": "main",
-      "logo": "logos/tavily.jpg",
+      "logo": "logos/tavily.png",
       "tags": ["research", "web"],
       "featured": true
     },
@@ -114,7 +114,7 @@
       "repo": "tavily-ai/skills",
       "path": "skills/tavily-crawl",
       "ref": "main",
-      "logo": "logos/tavily.jpg",
+      "logo": "logos/tavily.png",
       "tags": ["crawl", "web"],
       "featured": false
     },
@@ -129,7 +129,7 @@
       "repo": "tavily-ai/skills",
       "path": "skills/tavily-extract",
       "ref": "main",
-      "logo": "logos/tavily.jpg",
+      "logo": "logos/tavily.png",
       "tags": ["extract", "web"],
       "featured": false
     },
@@ -144,7 +144,7 @@
       "repo": "tavily-ai/skills",
       "path": "skills/tavily-cli",
       "ref": "main",
-      "logo": "logos/tavily.jpg",
+      "logo": "logos/tavily.png",
       "tags": ["search", "web", "cli"],
       "featured": false
     },
@@ -159,7 +159,7 @@
       "repo": "tavily-ai/skills",
       "path": "skills/tavily-best-practices",
       "ref": "main",
-      "logo": "logos/tavily.jpg",
+      "logo": "logos/tavily.png",
       "tags": ["reference", "web"],
       "featured": false
     }
