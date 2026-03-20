@@ -162,6 +162,21 @@
       "logo": "logos/tavily.png",
       "tags": ["reference", "web"],
       "featured": false
+    },
+    {
+      "id": "remotion-best-practices",
+      "name": "remotion-best-practices",
+      "display_name": "Remotion Best Practices",
+      "description": "Best practices for Remotion — video creation in React. Domain-specific knowledge for compositions, animations, and rendering.",
+      "version": "1.0.0",
+      "author": "Remotion",
+      "type": "external",
+      "repo": "remotion-dev/skills",
+      "path": "skills/remotion",
+      "ref": "main",
+      "logo": "logos/remotion.png",
+      "tags": ["video", "react"],
+      "featured": true
     }
   ]
 }
