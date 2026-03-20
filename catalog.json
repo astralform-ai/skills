@@ -351,6 +351,19 @@
       "logo": "logos/astralform.png",
       "tags": ["presentation", "design"],
       "featured": true
+    },
+    {
+      "id": "deepwiki",
+      "name": "deepwiki",
+      "display_name": "DeepWiki",
+      "description": "AI-generated documentation for any public GitHub repo. Explore architecture, APIs, and internals instantly.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/deepwiki",
+      "logo": "logos/devin.png",
+      "tags": ["research", "github", "docs"],
+      "featured": true
     }
   ]
 }
