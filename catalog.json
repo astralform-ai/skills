@@ -16,6 +16,19 @@
       "featured": true
     },
     {
+      "id": "deep-research",
+      "name": "deep-research",
+      "display_name": "Deep Research",
+      "description": "Systematic multi-angle web research methodology. Comprehensive multi-source research instead of superficial single searches.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/deep-research",
+      "logo": "logos/astralform.jpg",
+      "tags": ["research", "web"],
+      "featured": true
+    },
+    {
       "id": "ui-ux-pro-max",
       "name": "ui-ux-pro-max",
       "display_name": "UI/UX Pro Max",
