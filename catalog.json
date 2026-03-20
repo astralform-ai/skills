@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "name": "Astralform Official Skills",
+  "skills": [
+    {
+      "id": "orchestrator-guide",
+      "name": "orchestrator-guide",
+      "display_name": "Orchestrator Guide",
+      "description": "Teaches agents how to coordinate multi-agent workflows, delegate tasks, and manage sub-agent lifecycles in Astralform.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/orchestrator-guide",
+      "logo": "skills/orchestrator-guide/logo.jpg",
+      "tags": ["orchestration", "multi-agent"],
+      "featured": true
+    },
+    {
+      "id": "ui-ux-pro-max",
+      "name": "ui-ux-pro-max",
+      "display_name": "UI/UX Pro Max",
+      "description": "UI/UX design intelligence with 50+ styles, palettes, font pairings, and multi-stack support.",
+      "version": "1.0.0",
+      "author": "nextlevelbuilder",
+      "type": "external",
+      "repo": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "path": ".claude/skills/ui-ux-pro-max",
+      "ref": "main",
+      "logo": "skills/ui-ux-pro-max/logo.png",
+      "tags": ["design", "ui"],
+      "featured": true
+    },
+    {
+      "id": "frontend-design",
+      "name": "frontend-design",
+      "display_name": "Frontend Design",
+      "description": "Create distinctive, production-grade frontend interfaces with high design quality.",
+      "version": "1.0.0",
+      "author": "Anthropic",
+      "type": "external",
+      "repo": "anthropics/skills",
+      "path": "skills/frontend-design",
+      "ref": "main",
+      "logo": "skills/frontend-design/logo.webp",
+      "tags": ["design", "frontend"],
+      "featured": true
+    },
+    {
+      "id": "agent-browser",
+      "name": "agent-browser",
+      "display_name": "Agent Browser",
+      "description": "Browser automation CLI for AI agents — navigate pages, fill forms, take screenshots, and extract data.",
+      "version": "1.0.0",
+      "author": "Vercel",
+      "type": "external",
+      "repo": "vercel-labs/agent-browser",
+      "path": "skills/agent-browser",
+      "ref": "main",
+      "logo": "skills/agent-browser/logo.png",
+      "tags": ["automation", "browser"],
+      "featured": true
+    }
+  ]
+}
