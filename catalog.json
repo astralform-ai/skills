@@ -177,6 +177,64 @@
       "logo": "logos/remotion.png",
       "tags": ["video", "react"],
       "featured": true
+    },
+    {
+      "id": "hugging-face-paper-pages",
+      "name": "hugging-face-paper-pages",
+      "display_name": "Hugging Face Paper Pages",
+      "description": "Look up and read Hugging Face paper pages, fetch paper metadata, search papers, and find linked models/datasets/spaces via the HF Papers API.",
+      "version": "1.0.0",
+      "author": "Hugging Face",
+      "type": "external",
+      "repo": "huggingface/skills",
+      "path": "skills/hugging-face-paper-pages",
+      "ref": "main",
+      "logo": "logos/huggingface.png",
+      "tags": ["research", "papers", "ai"],
+      "featured": true
+    },
+    {
+      "id": "video-frames",
+      "name": "video-frames",
+      "display_name": "Video Frames",
+      "description": "Extract frames or short clips from videos using ffmpeg. Grab thumbnails, screenshots at timestamps, keyframes, and video metadata.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/video-frames",
+      "logo": "logos/ffmpeg.png",
+      "tags": ["video", "media", "ffmpeg"],
+      "featured": false
+    },
+    {
+      "id": "pdf",
+      "name": "pdf",
+      "display_name": "PDF",
+      "description": "Read, analyze, summarize, and create PDF documents. Extract text, tables, and metadata from PDFs.",
+      "version": "1.0.0",
+      "author": "Anthropic",
+      "type": "external",
+      "repo": "anthropics/skills",
+      "path": "skills/pdf",
+      "ref": "main",
+      "logo": "logos/anthropic.png",
+      "tags": ["documents", "pdf"],
+      "featured": true
+    },
+    {
+      "id": "web-artifacts-builder",
+      "name": "web-artifacts-builder",
+      "display_name": "Web Artifacts Builder",
+      "description": "Build interactive web pages, dashboards, and visual artifacts as self-contained HTML files.",
+      "version": "1.0.0",
+      "author": "Anthropic",
+      "type": "external",
+      "repo": "anthropics/skills",
+      "path": "skills/web-artifacts-builder",
+      "ref": "main",
+      "logo": "logos/anthropic.png",
+      "tags": ["web", "design", "html"],
+      "featured": true
     }
   ]
 }
