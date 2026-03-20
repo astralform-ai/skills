@@ -73,6 +73,7 @@
       "ref": "main",
       "logo": "logos/tavily.png",
       "tags": ["search", "web"],
+      "required_envs": ["TAVILY_API_KEY"],
       "featured": true
     },
     {
@@ -88,6 +89,7 @@
       "ref": "main",
       "logo": "logos/tavily.png",
       "tags": ["research", "web"],
+      "required_envs": ["TAVILY_API_KEY"],
       "featured": true
     },
     {
@@ -103,6 +105,7 @@
       "ref": "main",
       "logo": "logos/tavily.png",
       "tags": ["crawl", "web"],
+      "required_envs": ["TAVILY_API_KEY"],
       "featured": false
     },
     {
@@ -118,6 +121,7 @@
       "ref": "main",
       "logo": "logos/tavily.png",
       "tags": ["extract", "web"],
+      "required_envs": ["TAVILY_API_KEY"],
       "featured": false
     },
     {
@@ -133,6 +137,7 @@
       "ref": "main",
       "logo": "logos/tavily.png",
       "tags": ["search", "web", "cli"],
+      "required_envs": ["TAVILY_API_KEY"],
       "featured": false
     },
     {
@@ -236,6 +241,7 @@
       "ref": "main",
       "logo": "logos/firecrawl.png",
       "tags": ["scraping", "search", "web"],
+      "required_envs": ["FIRECRAWL_API_KEY"],
       "featured": true
     },
     {
@@ -251,6 +257,7 @@
       "ref": "main",
       "logo": "logos/brave.png",
       "tags": ["search", "web"],
+      "required_envs": ["BRAVE_API_KEY"],
       "featured": true
     },
     {
@@ -266,6 +273,7 @@
       "ref": "main",
       "logo": "logos/brave.png",
       "tags": ["search", "news"],
+      "required_envs": ["BRAVE_API_KEY"],
       "featured": true
     },
     {
@@ -281,6 +289,7 @@
       "ref": "main",
       "logo": "logos/brave.png",
       "tags": ["search", "images"],
+      "required_envs": ["BRAVE_API_KEY"],
       "featured": false
     },
     {
@@ -296,6 +305,7 @@
       "ref": "main",
       "logo": "logos/brave.png",
       "tags": ["search", "video"],
+      "required_envs": ["BRAVE_API_KEY"],
       "featured": false
     },
     {
@@ -311,6 +321,7 @@
       "ref": "main",
       "logo": "logos/brave.png",
       "tags": ["search", "rag", "ai"],
+      "required_envs": ["BRAVE_API_KEY"],
       "featured": false
     },
     {
@@ -324,6 +335,7 @@
       "path": "skills/giphy-search",
       "logo": "logos/giphy.png",
       "tags": ["fun", "media", "gif"],
+      "required_envs": ["GIPHY_API_KEY"],
       "featured": true
     },
     {
