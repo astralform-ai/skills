@@ -3,20 +3,6 @@
   "name": "Astralform Official Skills",
   "skills": [
     {
-      "id": "orchestrator-guide",
-      "name": "orchestrator-guide",
-      "display_name": "Orchestrator Guide",
-      "description": "Task decomposition and delegation guidance for orchestrator agents. System skill — auto-assigned to team lead.",
-      "version": "1.0.0",
-      "author": "Astralform",
-      "type": "internal",
-      "system": true,
-      "path": "skills/orchestrator-guide",
-      "logo": "logos/astralform.png",
-      "tags": ["orchestration", "multi-agent"],
-      "featured": false
-    },
-    {
       "id": "deep-research",
       "name": "deep-research",
       "display_name": "Deep Research",
