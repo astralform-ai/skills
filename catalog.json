@@ -325,6 +325,19 @@
       "logo": "logos/brave.png",
       "tags": ["search", "rag", "ai"],
       "featured": false
+    },
+    {
+      "id": "giphy-search",
+      "name": "giphy-search",
+      "display_name": "Giphy Search",
+      "description": "Search Giphy for GIFs and reaction images. Find the perfect GIF for any mood or moment.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/giphy-search",
+      "logo": "logos/giphy.png",
+      "tags": ["fun", "media", "gif"],
+      "featured": true
     }
   ]
 }
