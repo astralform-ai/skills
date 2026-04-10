@@ -363,6 +363,19 @@
       "logo": "logos/devin.png",
       "tags": ["research", "github", "docs"],
       "featured": true
+    },
+    {
+      "id": "youtube",
+      "name": "youtube",
+      "display_name": "YouTube",
+      "description": "YouTube video transcript extraction and content analysis. Summarize, extract key points, identify speakers, pull quotes, and compare videos.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/youtube",
+      "logo": "logos/youtube.png",
+      "tags": ["youtube", "media", "transcript", "analysis"],
+      "featured": true
     }
   ]
 }
