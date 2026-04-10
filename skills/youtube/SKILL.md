@@ -24,15 +24,10 @@ Extract transcripts from YouTube videos and analyze their content — summaries,
 
 **Required:** `yt-dlp` — the universal video/subtitle downloader.
 
-```bash
-which yt-dlp || echo "Not installed"
-```
+The script auto-installs `yt-dlp` via `pip` if it's not found, so no manual setup is needed in most environments (including sandboxed runtimes like E2B). If auto-install fails, install manually:
 
-If not installed:
 ```bash
-brew install yt-dlp      # macOS
-pip install yt-dlp        # any platform
-pipx install yt-dlp       # isolated install
+pip install yt-dlp
 ```
 
 ## Phase 1: Extract

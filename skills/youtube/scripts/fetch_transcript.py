@@ -74,12 +74,34 @@ def slugify(text: str, max_len: int = 80) -> str:
 
 # --- yt-dlp interaction ---
 
-def check_ytdlp():
+def check_ytdlp() -> bool:
     try:
         subprocess.run(["yt-dlp", "--version"], capture_output=True, check=True)
         return True
     except (FileNotFoundError, subprocess.CalledProcessError):
         return False
+
+
+def ensure_ytdlp() -> bool:
+    """Check for yt-dlp and auto-install via pip if missing."""
+    if check_ytdlp():
+        return True
+
+    print("yt-dlp not found. Installing via pip...", file=sys.stderr)
+    for cmd in [
+        [sys.executable, "-m", "pip", "install", "--quiet", "yt-dlp"],
+        ["pip3", "install", "--quiet", "yt-dlp"],
+        ["pip", "install", "--quiet", "yt-dlp"],
+    ]:
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if result.returncode == 0 and check_ytdlp():
+                print("yt-dlp installed successfully.", file=sys.stderr)
+                return True
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+
+    return False
 
 
 def fetch_metadata(video_id: str) -> dict:
@@ -632,10 +654,10 @@ def main():
 
     args = parser.parse_args()
 
-    # Check yt-dlp
-    if not check_ytdlp():
-        print("Error: yt-dlp is not installed.", file=sys.stderr)
-        print("Install with: brew install yt-dlp  OR  pip install yt-dlp", file=sys.stderr)
+    # Check yt-dlp, auto-install if missing
+    if not ensure_ytdlp():
+        print("Error: yt-dlp is not installed and auto-install failed.", file=sys.stderr)
+        print("Install manually with: pip install yt-dlp", file=sys.stderr)
         sys.exit(1)
 
     video_id = extract_video_id(args.url)
