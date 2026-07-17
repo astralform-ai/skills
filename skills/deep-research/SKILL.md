@@ -2,7 +2,7 @@
 name: deep-research
 description: Systematic multi-angle web research methodology. Use instead of a single search for ANY question requiring web research — "what is X", "explain X", "compare X and Y", "research X", or before content generation tasks. Provides comprehensive multi-source research rather than superficial single searches.
 display_name: Deep Research
-version: "1.0.0"
+version: "1.0.1"
 author: Astralform
 ---
 
@@ -151,13 +151,6 @@ Research is sufficient when you can confidently answer:
 - What are the current trends and future directions?
 - What are the challenges or limitations?
 - What makes this topic relevant or important now?
-
-## Multi-Agent Usage
-
-When used with an orchestrator agent:
-- The orchestrator can delegate Phase 1 (broad exploration) to one agent and Phase 2 (deep dives) to multiple agents in parallel — one per dimension
-- Each research agent reports findings back to the orchestrator for Phase 4 synthesis
-- This parallelizes research and produces faster, more comprehensive results
 
 ## Common Mistakes
 
