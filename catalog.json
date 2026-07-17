@@ -3,19 +3,6 @@
   "name": "Astralform Official Skills",
   "skills": [
     {
-      "id": "deep-research",
-      "name": "deep-research",
-      "display_name": "Deep Research",
-      "description": "Systematic multi-angle web research methodology. Comprehensive multi-source research instead of superficial single searches.",
-      "version": "1.0.1",
-      "author": "Astralform",
-      "type": "internal",
-      "path": "skills/deep-research",
-      "logo": "logos/astralform.png",
-      "tags": ["research", "web"],
-      "featured": true
-    },
-    {
       "id": "ui-ux-pro-max",
       "name": "ui-ux-pro-max",
       "display_name": "UI/UX Pro Max",
@@ -27,7 +14,10 @@
       "path": ".claude/skills/ui-ux-pro-max",
       "ref": "main",
       "logo": "logos/nextlevelbuilder.png",
-      "tags": ["design", "ui"],
+      "tags": [
+        "design",
+        "ui"
+      ],
       "featured": true
     },
     {
@@ -42,14 +32,17 @@
       "path": "skills/frontend-design",
       "ref": "main",
       "logo": "logos/anthropic.png",
-      "tags": ["design", "frontend"],
+      "tags": [
+        "design",
+        "frontend"
+      ],
       "featured": true
     },
     {
       "id": "agent-browser",
       "name": "agent-browser",
       "display_name": "Agent Browser",
-      "description": "Browser automation CLI for AI agents — navigate pages, fill forms, take screenshots, and extract data.",
+      "description": "Browser automation CLI for AI agents \u2014 navigate pages, fill forms, take screenshots, and extract data.",
       "version": "1.0.0",
       "author": "Vercel",
       "type": "external",
@@ -57,109 +50,17 @@
       "path": "skills/agent-browser",
       "ref": "main",
       "logo": "logos/vercel.png",
-      "tags": ["automation", "browser"],
+      "tags": [
+        "automation",
+        "browser"
+      ],
       "featured": true
-    },
-    {
-      "id": "tavily-search",
-      "name": "tavily-search",
-      "display_name": "Tavily Search",
-      "description": "Search the web with LLM-optimized results. Find articles, look up information, get recent news, and discover sources with relevance scores and content snippets.",
-      "version": "1.0.0",
-      "author": "Tavily",
-      "type": "external",
-      "repo": "tavily-ai/skills",
-      "path": "skills/tavily-search",
-      "ref": "main",
-      "logo": "logos/tavily.png",
-      "tags": ["search", "web"],
-      "required_envs": ["TAVILY_API_KEY"],
-      "featured": true
-    },
-    {
-      "id": "tavily-research",
-      "name": "tavily-research",
-      "display_name": "Tavily Research",
-      "description": "Conduct comprehensive AI-powered research with citations. Deep reports, comparisons, market analysis, and multi-source synthesis.",
-      "version": "1.0.0",
-      "author": "Tavily",
-      "type": "external",
-      "repo": "tavily-ai/skills",
-      "path": "skills/tavily-research",
-      "ref": "main",
-      "logo": "logos/tavily.png",
-      "tags": ["research", "web"],
-      "required_envs": ["TAVILY_API_KEY"],
-      "featured": true
-    },
-    {
-      "id": "tavily-crawl",
-      "name": "tavily-crawl",
-      "display_name": "Tavily Crawl",
-      "description": "Crawl websites and extract content from multiple pages. Download documentation, bulk-extract pages, and save as local markdown files.",
-      "version": "1.0.0",
-      "author": "Tavily",
-      "type": "external",
-      "repo": "tavily-ai/skills",
-      "path": "skills/tavily-crawl",
-      "ref": "main",
-      "logo": "logos/tavily.png",
-      "tags": ["crawl", "web"],
-      "required_envs": ["TAVILY_API_KEY"],
-      "featured": false
-    },
-    {
-      "id": "tavily-extract",
-      "name": "tavily-extract",
-      "display_name": "Tavily Extract",
-      "description": "Extract clean markdown content from specific URLs. Handles JavaScript-rendered pages and supports query-focused chunking.",
-      "version": "1.0.0",
-      "author": "Tavily",
-      "type": "external",
-      "repo": "tavily-ai/skills",
-      "path": "skills/tavily-extract",
-      "ref": "main",
-      "logo": "logos/tavily.png",
-      "tags": ["extract", "web"],
-      "required_envs": ["TAVILY_API_KEY"],
-      "featured": false
-    },
-    {
-      "id": "tavily-cli",
-      "name": "tavily-cli",
-      "display_name": "Tavily CLI",
-      "description": "All-in-one web search, extraction, crawling, and deep research via the Tavily CLI.",
-      "version": "1.0.0",
-      "author": "Tavily",
-      "type": "external",
-      "repo": "tavily-ai/skills",
-      "path": "skills/tavily-cli",
-      "ref": "main",
-      "logo": "logos/tavily.png",
-      "tags": ["search", "web", "cli"],
-      "required_envs": ["TAVILY_API_KEY"],
-      "featured": false
-    },
-    {
-      "id": "tavily-best-practices",
-      "name": "tavily-best-practices",
-      "display_name": "Tavily Best Practices",
-      "description": "Reference documentation for building production-ready Tavily integrations in agentic workflows and RAG systems.",
-      "version": "1.0.0",
-      "author": "Tavily",
-      "type": "external",
-      "repo": "tavily-ai/skills",
-      "path": "skills/tavily-best-practices",
-      "ref": "main",
-      "logo": "logos/tavily.png",
-      "tags": ["reference", "web"],
-      "featured": false
     },
     {
       "id": "remotion-best-practices",
       "name": "remotion-best-practices",
       "display_name": "Remotion Best Practices",
-      "description": "Best practices for Remotion — video creation in React. Domain-specific knowledge for compositions, animations, and rendering.",
+      "description": "Best practices for Remotion \u2014 video creation in React. Domain-specific knowledge for compositions, animations, and rendering.",
       "version": "1.0.0",
       "author": "Remotion",
       "type": "external",
@@ -167,7 +68,10 @@
       "path": "skills/remotion",
       "ref": "main",
       "logo": "logos/remotion.png",
-      "tags": ["video", "react"],
+      "tags": [
+        "video",
+        "react"
+      ],
       "featured": true
     },
     {
@@ -182,7 +86,11 @@
       "path": "skills/hugging-face-paper-pages",
       "ref": "main",
       "logo": "logos/huggingface.png",
-      "tags": ["research", "papers", "ai"],
+      "tags": [
+        "research",
+        "papers",
+        "ai"
+      ],
       "featured": true
     },
     {
@@ -195,7 +103,11 @@
       "type": "internal",
       "path": "skills/video-frames",
       "logo": "logos/ffmpeg.png",
-      "tags": ["video", "media", "ffmpeg"],
+      "tags": [
+        "video",
+        "media",
+        "ffmpeg"
+      ],
       "featured": false
     },
     {
@@ -210,7 +122,10 @@
       "path": "skills/pdf",
       "ref": "main",
       "logo": "logos/anthropic.png",
-      "tags": ["documents", "pdf"],
+      "tags": [
+        "documents",
+        "pdf"
+      ],
       "featured": true
     },
     {
@@ -225,104 +140,12 @@
       "path": "skills/web-artifacts-builder",
       "ref": "main",
       "logo": "logos/anthropic.png",
-      "tags": ["web", "design", "html"],
+      "tags": [
+        "web",
+        "design",
+        "html"
+      ],
       "featured": true
-    },
-    {
-      "id": "firecrawl-cli",
-      "name": "firecrawl-cli",
-      "display_name": "Firecrawl CLI",
-      "description": "Web scraping, search, crawling, and browser automation via the Firecrawl CLI. Search the web, scrape pages, crawl docs, and extract data as clean markdown.",
-      "version": "1.0.0",
-      "author": "Firecrawl",
-      "type": "external",
-      "repo": "firecrawl/cli",
-      "path": "skills/firecrawl-cli",
-      "ref": "main",
-      "logo": "logos/firecrawl.png",
-      "tags": ["scraping", "search", "web"],
-      "required_envs": ["FIRECRAWL_API_KEY"],
-      "featured": true
-    },
-    {
-      "id": "brave-web-search",
-      "name": "web-search",
-      "display_name": "Brave Web Search",
-      "description": "Web search with ranked results, snippets, URLs, and thumbnails. Supports freshness filters, SafeSearch, and custom ranking via Goggles.",
-      "version": "1.0.0",
-      "author": "Brave",
-      "type": "external",
-      "repo": "brave/brave-search-skills",
-      "path": "skills/web-search",
-      "ref": "main",
-      "logo": "logos/brave.png",
-      "tags": ["search", "web"],
-      "required_envs": ["BRAVE_API_KEY"],
-      "featured": true
-    },
-    {
-      "id": "brave-news-search",
-      "name": "news-search",
-      "display_name": "Brave News Search",
-      "description": "Search news articles with title, URL, description, age, and thumbnails. Supports freshness and date range filtering.",
-      "version": "1.0.0",
-      "author": "Brave",
-      "type": "external",
-      "repo": "brave/brave-search-skills",
-      "path": "skills/news-search",
-      "ref": "main",
-      "logo": "logos/brave.png",
-      "tags": ["search", "news"],
-      "required_envs": ["BRAVE_API_KEY"],
-      "featured": true
-    },
-    {
-      "id": "brave-images-search",
-      "name": "images-search",
-      "display_name": "Brave Image Search",
-      "description": "Search images with title, source URL, and thumbnails. Supports SafeSearch filter. Up to 200 results.",
-      "version": "1.0.0",
-      "author": "Brave",
-      "type": "external",
-      "repo": "brave/brave-search-skills",
-      "path": "skills/images-search",
-      "ref": "main",
-      "logo": "logos/brave.png",
-      "tags": ["search", "images"],
-      "required_envs": ["BRAVE_API_KEY"],
-      "featured": false
-    },
-    {
-      "id": "brave-videos-search",
-      "name": "videos-search",
-      "display_name": "Brave Video Search",
-      "description": "Search videos with title, URL, thumbnail, duration, view count, and creator. Supports freshness filters and pagination.",
-      "version": "1.0.0",
-      "author": "Brave",
-      "type": "external",
-      "repo": "brave/brave-search-skills",
-      "path": "skills/videos-search",
-      "ref": "main",
-      "logo": "logos/brave.png",
-      "tags": ["search", "video"],
-      "required_envs": ["BRAVE_API_KEY"],
-      "featured": false
-    },
-    {
-      "id": "brave-llm-context",
-      "name": "llm-context",
-      "display_name": "Brave LLM Context",
-      "description": "Pre-extracted web content optimized for LLMs — text, tables, and code for RAG and AI grounding. Recommended for agentic applications.",
-      "version": "1.0.0",
-      "author": "Brave",
-      "type": "external",
-      "repo": "brave/brave-search-skills",
-      "path": "skills/llm-context",
-      "ref": "main",
-      "logo": "logos/brave.png",
-      "tags": ["search", "rag", "ai"],
-      "required_envs": ["BRAVE_API_KEY"],
-      "featured": false
     },
     {
       "id": "giphy-search",
@@ -334,8 +157,14 @@
       "type": "internal",
       "path": "skills/giphy-search",
       "logo": "logos/giphy.png",
-      "tags": ["fun", "media", "gif"],
-      "required_envs": ["GIPHY_API_KEY"],
+      "tags": [
+        "fun",
+        "media",
+        "gif"
+      ],
+      "required_envs": [
+        "GIPHY_API_KEY"
+      ],
       "featured": true
     },
     {
@@ -348,7 +177,10 @@
       "type": "internal",
       "path": "skills/ppt-generation",
       "logo": "logos/astralform.png",
-      "tags": ["presentation", "design"],
+      "tags": [
+        "presentation",
+        "design"
+      ],
       "featured": true
     },
     {
@@ -361,7 +193,11 @@
       "type": "internal",
       "path": "skills/deepwiki",
       "logo": "logos/devin.png",
-      "tags": ["research", "github", "docs"],
+      "tags": [
+        "research",
+        "github",
+        "docs"
+      ],
       "featured": true
     },
     {
@@ -374,7 +210,12 @@
       "type": "internal",
       "path": "skills/youtube",
       "logo": "logos/youtube.png",
-      "tags": ["youtube", "media", "transcript", "analysis"],
+      "tags": [
+        "youtube",
+        "media",
+        "transcript",
+        "analysis"
+      ],
       "featured": true
     }
   ]
