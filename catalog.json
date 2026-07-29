@@ -217,6 +217,24 @@
         "analysis"
       ],
       "featured": true
+    },
+    {
+      "id": "yfinance",
+      "name": "yfinance",
+      "display_name": "Yahoo Finance",
+      "description": "Stock market data from Yahoo Finance \u2014 prices, fundamentals, financial statements, options chains, analyst estimates, holdings, and screeners.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/yfinance",
+      "logo": "logos/yahoo-finance.png",
+      "tags": [
+        "finance",
+        "stocks",
+        "market-data",
+        "research"
+      ],
+      "featured": true
     }
   ]
 }
