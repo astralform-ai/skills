@@ -75,32 +75,47 @@ def measure_starts(video: Path, tmp: Path, plan: dict, refs: dict[int, bytes],
     observed: dict[int, float] = {scenes[0]["index"]: 0.0}
     probe_png = tmp / "boundary.png"
 
-    def shows_incoming(t: float, prev_i: int, cur_i: int) -> bool | None:
+    def past(t: float, prev_i: int) -> bool | None:
+        """Has the outgoing scene stopped being the one on screen?
+
+        Deliberately asks 'is this still `prev`?' rather than 'is this `cur`?'.
+        The narrower question is not monotone: a short scene lets the search
+        window reach the scene *after* `cur`, where 'closer to cur than prev'
+        can flip back to false and send the bisection to a wrong answer. Asking
+        only about `prev` stays true once the cut has happened, however far past
+        it the probe lands.
+        """
         if not grab(video, min(t, max(0.0, dur - 0.05)), probe_png):
             return None
         sig = signature(probe_png)
-        return sig_distance(sig, refs[cur_i]) < sig_distance(sig, refs[prev_i])
+        best = min(refs, key=lambda i: sig_distance(sig, refs[i]))
+        return best != prev_i
 
     for n in range(1, len(scenes)):
         prev_i, cur_i = scenes[n - 1]["index"], scenes[n]["index"]
         if prev_i not in refs or cur_i not in refs:
             continue
         prev_len = float(scenes[n - 1]["duration"])
-        lo = observed[prev_i] + 0.4          # safely inside the outgoing scene
-        hi = min(dur - 0.05, lo + prev_len + 4.0)   # slack covers padding + fade
+        lo = observed[prev_i] + min(0.4, prev_len / 3)   # inside the outgoing scene
+        hi = min(dur - 0.05, observed[prev_i] + prev_len + 4.0)
         if lo >= hi:
             continue
-        at_hi = shows_incoming(hi, prev_i, cur_i)
+        at_hi = past(hi, prev_i)
         if at_hi is None:
             continue
         if not at_hi:
-            # Never switched inside the window — record the far edge so the
-            # caller reports a large drift rather than silently skipping.
+            # Still showing the outgoing scene at the far edge — report the edge
+            # so a large drift surfaces rather than being skipped.
             observed[cur_i] = hi
+            continue
+        if past(lo, prev_i):
+            # Already switched at the near edge: the outgoing scene is shorter
+            # than planned, so the cut is at or before lo.
+            observed[cur_i] = lo
             continue
         for _ in range(8):
             mid = (lo + hi) / 2
-            r = shows_incoming(mid, prev_i, cur_i)
+            r = past(mid, prev_i)
             if r is None:
                 break
             if r:

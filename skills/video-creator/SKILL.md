@@ -198,9 +198,10 @@ the end, which is the part nobody re-watches before publishing.
 
 ```python
 kicker, subtitle, brand = "EP 12", "...", "..."
-points = ",".join(["...", "...", "..."])
+# Repeat --point; the comma-separated --points splits prose that contains commas
+pts = " ".join(f"--point {q(p)}" for p in ["...", "...", "..."])
 run(f"python3 {SK}/scripts/make_covers.py --from-plan ep/plan.json "
-    f"--kicker {q(kicker)} --subtitle {q(subtitle)} --points {q(points)} "
+    f"--kicker {q(kicker)} --subtitle {q(subtitle)} {pts} "
     f"--brand {q(brand)} -o ep/covers/")
 ```
 
