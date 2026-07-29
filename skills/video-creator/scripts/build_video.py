@@ -120,6 +120,15 @@ def stage_clips(plan: dict, scenes_dir: Path, work: Path, lo: int, hi: int,
         print("  NOTE: estimate is near the 300 s capsule_run_code ceiling — "
               "narrow the range. Re-running is safe; finished clips are skipped.")
 
+    # Record how these clips were built. A clip padded for a cross-fade and a
+    # clip wrongly padded by the drift bug have identical durations, so verify.py
+    # cannot tell them apart from the files alone — only the builder knows.
+    (work / "build.json").write_text(json.dumps({
+        "transition": transition,
+        "overlap": float((plan.get("transition") or {}).get("duration", 0.5)),
+        "fade": fade,
+    }), encoding="utf-8")
+
     for sc in pending:
         still = scenes_dir / f"s{sc['index']:03d}.png"
         if not still.exists():

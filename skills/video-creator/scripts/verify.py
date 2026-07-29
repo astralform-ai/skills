@@ -75,10 +75,25 @@ def measure_starts(clips_dir: Path, plan: dict) -> tuple[dict[int, float], list[
     card was closer in grey, and near-black frames matched a full-bleed card.
     Every one of those was a false alarm on a video that was fine.
     """
+    # A cross-fade consumes its overlap, so a clip advances the timeline by less
+    # than its own length. A clip padded for that and a clip padded by the drift
+    # bug are byte-for-byte the same length, so this cannot be inferred from the
+    # files — build_video.py records what it did in clips/build.json.
+    overlap = 0.0
+    build = clips_dir / "build.json"
+    if build.exists():
+        try:
+            cfg = json.loads(build.read_text(encoding="utf-8"))
+            if cfg.get("transition") == "xfade":
+                overlap = float(cfg.get("overlap", 0.5))
+        except (ValueError, OSError):
+            pass
+
     starts: dict[int, float] = {}
     unmeasured: list[int] = []
+    scenes = plan["scenes"]
     t = 0.0
-    for sc in plan["scenes"]:
+    for n, sc in enumerate(scenes):
         i = sc["index"]
         clip = clips_dir / f"c{i:03d}.mp4"
         if not clip.exists():
@@ -90,7 +105,8 @@ def measure_starts(clips_dir: Path, plan: dict) -> tuple[dict[int, float], list[
         starts[i] = t
         d = probe(clip, "format=duration")
         try:
-            t += float(d)
+            # Only non-final clips carry the cross-fade's overlap.
+            t += float(d) - (overlap if n < len(scenes) - 1 else 0.0)
         except ValueError:
             unmeasured.append(i)
             t = float(sc["start"]) + float(sc["duration"])
