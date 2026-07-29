@@ -241,7 +241,7 @@
       "name": "video-creator",
       "display_name": "Video Creator",
       "description": "Turn a topic, article, or narration script into a finished release: a 1080p explainer cut to the narration, five-ratio covers, platform copy, and a blog post.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Astralform",
       "type": "internal",
       "path": "skills/video-creator",

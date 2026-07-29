@@ -2,7 +2,7 @@
 name: video-creator
 description: Turn a topic, an article, or a narration script into a finished publishable set — a 1080p explainer video with the picture cut to the narration, five-ratio covers, YouTube and Bilibili copy, a companion blog post, and a social post. Use when the user asks to make a video, produce an episode, turn a script or article into a video, build a faceless explainer, generate video covers or thumbnails, or write the description and chapters for one. Renders entirely in the Astralform cloud sandbox with ffmpeg and Pillow — no local machine, no browser, no editor.
 display_name: Video Creator
-version: "1.0.0"
+version: "1.0.1"
 author: Astralform
 ---
 
