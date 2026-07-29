@@ -11,11 +11,14 @@ off, and that is exactly what a cheap thumbnail looks like.
 kicker   = "EP 12"
 title    = "音频即时钟"
 subtitle = "为什么时间轴不该由感觉决定"
-points   = "SRT 决定时间轴,设计只有一套 token,渲染后逐帧自检"
 brand    = "ASTRALFORM"
+# Repeat --point rather than using the comma-separated --points: episode copy
+# routinely contains commas, and they would silently split one point into two.
+points   = ["SRT 决定时间轴", "设计只有一套 token", "渲染后逐帧自检"]
+pts      = " ".join(f"--point {q(p)}" for p in points)
 run(f"python3 {SK}/scripts/make_covers.py --from-plan ep/plan.json "
     f"--kicker {q(kicker)} --title {q(title)} --subtitle {q(subtitle)} "
-    f"--points {q(points)} --brand {q(brand)} -o ep/covers/")
+    f"{pts} --brand {q(brand)} -o ep/covers/")
 ```
 
 `--from-plan` inherits the video's design and, unless you override them, the

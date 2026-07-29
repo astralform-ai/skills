@@ -81,7 +81,7 @@ run(f"python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
 run(f"python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
     f"--scenes ep/scenes --stage join -o ep/renders/episode.mp4")
 run(f"python3 {SK}/scripts/verify.py ep/renders/episode.mp4 --plan ep/plan.json "
-    f"--scenes ep/scenes")
+    f"--clips ep/clips --scenes ep/scenes")
 ```
 
 (`run` and `SK` are the helper defined in SKILL.md — there is no bash kernel, so

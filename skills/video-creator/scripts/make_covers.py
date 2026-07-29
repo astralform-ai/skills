@@ -6,7 +6,7 @@ master — a 16:9 title squeezed into 9:16 is what makes a thumbnail look cheap.
 
 Usage:
     python3 make_covers.py --title "标题" --subtitle "..." -o covers/
-    python3 make_covers.py --title "..." --points "A,B,C" --design midnight
+    python3 make_covers.py --title "..." --point "A" --point "B, with a comma"
     python3 make_covers.py --from-plan plan.json          # title from scene 1
 """
 
@@ -64,7 +64,11 @@ def cover(size: tuple[int, int], tk: dict, args) -> Image.Image:
         fs, slines = fit(args.subtitle, "regular", int(unit * 0.036), box_w, 3)
         parts.append(("sub", fs, slines, muted, int(unit * 0.028), int(fs.size * 1.4)))
 
-    points = [p.strip() for p in (args.points or "").split(",") if p.strip()][:4]
+    # Repeated --point wins: episode copy routinely contains commas, and the
+    # comma-separated form silently splits one point into two.
+    points = [p.strip() for p in args.point if p.strip()] or \
+             [p.strip() for p in (args.points or "").split(",") if p.strip()]
+    points = points[:4]
     fp = fn = None
     if points:
         fp, fn = font("regular", int(unit * 0.032)), font("bold", int(unit * 0.032))
@@ -119,7 +123,12 @@ def main() -> None:
     ap.add_argument("--title", default="")
     ap.add_argument("--subtitle", default="")
     ap.add_argument("--kicker", default="")
-    ap.add_argument("--points", default="", help="Comma-separated, max 4")
+    ap.add_argument("--points", default="",
+                    help="Comma-separated, max 4. Breaks on points containing a "
+                         "comma — prefer repeated --point for prose.")
+    ap.add_argument("--point", action="append", default=[],
+                    help="One bullet point; repeat up to 4 times. Safe for text "
+                         "containing commas.")
     ap.add_argument("--brand", default="")
     ap.add_argument("--design", default="")
     ap.add_argument("--from-plan", default="")
