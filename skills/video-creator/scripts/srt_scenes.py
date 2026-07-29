@@ -16,8 +16,9 @@ Options:
     --breaks LIST    1-based cue indices that START a scene. Overrides --target
                      — use it once you have read the transcript and know where
                      the topic actually turns.
-    --overlap SEC    Extra tail on each scene so the transition has something to
-                     wipe over (default 0.5).
+    --transition SEC Cross-fade length recorded in the plan (default 0.5). It is
+                     NOT added to any scene's duration — build_video.py extends a
+                     clip by it only when that clip is actually cross-faded.
     --design NAME    Design preset recorded in the plan (default blockframe).
     -o PATH          Output plan (default plan.json).
 """
@@ -96,7 +97,7 @@ def main() -> None:
     ap.add_argument("--audio", required=True)
     ap.add_argument("--target", type=float, default=30.0)
     ap.add_argument("--breaks", default="")
-    ap.add_argument("--overlap", type=float, default=0.5)
+    ap.add_argument("--transition", type=float, default=0.5)
     ap.add_argument("--design", default="blockframe")
     ap.add_argument("-o", "--output", default="plan.json")
     args = ap.parse_args()
@@ -118,14 +119,17 @@ def main() -> None:
     for n, cue_i in enumerate(starts):
         start = cues[cue_i]["start"]
         # A scene runs until the next one starts; the last runs to the end of the
-        # narration. The overlap gives the transition something to wipe across.
+        # narration. `duration` is the time the scene is actually on screen —
+        # nothing is added for a transition. Baking a tail in here silently
+        # delays every later scene by that much once the clips are concatenated,
+        # which is exactly the narration drift this pipeline exists to avoid.
         nxt = cues[starts[n + 1]]["start"] if n + 1 < len(starts) else total
         end_i = starts[n + 1] if n + 1 < len(starts) else len(cues)
         scenes.append(
             {
                 "index": n + 1,
                 "start": round(start, 3),
-                "duration": round(nxt - start + args.overlap, 3),
+                "duration": round(nxt - start, 3),
                 "layout": "statement",
                 "motion": "pan-right" if n % 2 == 0 else "pan-left",
                 "kicker": "",
@@ -144,7 +148,7 @@ def main() -> None:
         "audio": args.audio,
         "srt": args.srt,
         "audio_duration": round(total, 3),
-        "transition": {"type": "wiperight", "duration": 0.5},
+        "transition": {"type": "wiperight", "duration": args.transition},
         "scenes": scenes,
     }
     Path(args.output).write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")

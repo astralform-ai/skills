@@ -49,6 +49,8 @@ it if you ever get a `NameError`):
 
 ```python
 import capsule
+from shlex import quote as q          # ALWAYS wrap episode text in q()
+
 SK = "{baseDir}"
 
 def run(cmd, timeout=280):
@@ -67,6 +69,20 @@ def run(cmd, timeout=280):
 
 Keep `timeout` under 300 s — that is the ceiling on the whole
 `capsule_run_code` call, and overrunning it kills the call, not just the command.
+
+**Quote every piece of episode text with `q()`.** `proc.exec` runs the string
+through a shell, and titles, subtitles and bullet points come from the user's
+article, script or narration — text you did not author. A stray `"`, `` ` ``,
+`$(…)` or `;` in it stops being a title and starts being a command. `q()` costs
+nothing and closes the hole:
+
+```python
+title = "Why $(whoami) broke prod"     # perfectly reasonable headline
+run(f"python3 {SK}/scripts/make_covers.py --title {q(title)} -o ep/covers/")
+```
+
+Never hand-quote with `f'--title "{title}"'` — that is exactly the pattern that
+breaks. The same applies to any path or value derived from user input.
 
 ## Workflow
 
@@ -141,8 +157,10 @@ Re-render just what changed with `--only 4,9`.
 ### Step 4 · Encode
 
 Encoding is the slow stage, and **a `capsule_run_code` call is killed at 300
-seconds**, so run it in ranges — roughly 0.6 s of encoding per second of video,
-finished clips are kept, and re-running a range is safe:
+seconds**, so run it in ranges — roughly 0.6 s of encoding per second of video.
+Re-running a range is safe and cheap: each finished clip is verified by length
+and skipped, and a clip interrupted mid-encode is discarded rather than left as
+a short file a later run would trust. Use `--force` to deliberately re-encode.
 
 ```python
 # one capsule_run_code call per range, so none of them hits the 300 s ceiling
@@ -160,21 +178,30 @@ run(f"python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
 ### Step 5 · Verify
 
 ```python
-run(f"python3 {SK}/scripts/verify.py ep/renders/episode.mp4 "
-    f"--plan ep/plan.json --sheet ep/check.png")
+run(f"python3 {SK}/scripts/verify.py ep/renders/episode.mp4 --plan ep/plan.json "
+    f"--scenes ep/scenes --sheet ep/check.png")
 ```
 
-It checks the streams, the drift against the narration, and — the one that
-matters — that no two scenes rendered the **same frame**, which is how a scene
-that silently failed to draw shows up. Do not skip it because the video "looks
-fine"; a duplicated frame in the back half is easy to miss and impossible to
-un-ship.
+**Pass `--scenes`** — without it the alignment check is skipped and the run is
+far weaker than it looks.
+
+It checks three things the eye misses: that each scene is **on screen when the
+narration says it is** (matching the frame against the scene stills, which is
+the only way accumulated timing drift shows up — total duration cannot reveal
+it, because the `-shortest` mux truncates the overrun and the total still looks
+right); that no two scenes render the **same artwork**, comparing content with
+the per-scene progress bar masked out; and that no frame is blank. Do not skip
+it because the video "looks fine" in the first ten seconds — drift grows toward
+the end, which is the part nobody re-watches before publishing.
 
 ### Step 6 · Covers
 
 ```python
-run(f'python3 {SK}/scripts/make_covers.py --from-plan ep/plan.json --kicker "EP 12" '
-    f'--subtitle "..." --points "...,...,..." --brand "..." -o ep/covers/')
+kicker, subtitle, brand = "EP 12", "...", "..."
+points = ",".join(["...", "...", "..."])
+run(f"python3 {SK}/scripts/make_covers.py --from-plan ep/plan.json "
+    f"--kicker {q(kicker)} --subtitle {q(subtitle)} --points {q(points)} "
+    f"--brand {q(brand)} -o ep/covers/")
 ```
 
 See `references/covers.md` — the discipline is one dominant title and nothing
@@ -215,13 +242,23 @@ These are measured in the capsule, not guessed. Each one fails quietly.
 6. **`capsule.proc.exec` never raises.** It reports failure in the returned
    dict, so an unchecked call reads as success while producing nothing. Check
    `ok` on every call; the `run` helper above does it for you.
-7. **Never touch SRT timestamps** when proofreading. Fix misheard terms and
+7. **A scene's `duration` is its on-screen time — never add a transition tail to
+   it.** Only a cross-fade consumes extra material, and only `build_video.py`
+   knows whether one is happening. Padding every scene in the plan instead makes
+   the clips longer than their narration intervals, so once they are
+   concatenated scene *i* starts `i × overlap` seconds late. The failure is
+   invisible from the outside: `-shortest` truncates the overrun so the total
+   duration still matches the audio. `verify.py --scenes` is what catches it.
+8. **Quote episode text with `shlex.quote` before it reaches a shell.** Titles
+   and bullets come from the user's article or script; `$(…)`, backticks and `;`
+   in them are commands, not punctuation.
+9. **Never touch SRT timestamps** when proofreading. Fix misheard terms and
    names only — the timings are the one thing you cannot re-derive.
-8. **Subtitles are not burned into the master.** Ship the SRT to the platform.
+10. **Subtitles are not burned into the master.** Ship the SRT to the platform.
    If a hardsub is needed, export it as a second file.
-9. **Keep chrome almost empty.** A progress bar, a hairline frame, and nothing
+11. **Keep chrome almost empty.** A progress bar, a hairline frame, and nothing
    else. Text like "16:9" or a tagline sits on *every frame of the whole video*.
-10. **Judge dark designs by extracted frames, not average brightness.** A dark
+12. **Judge dark designs by extracted frames, not average brightness.** A dark
    preset with sparse text always measures dim; `verify.py` counts distinct
    colours instead.
 

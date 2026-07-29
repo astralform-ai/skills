@@ -75,39 +75,81 @@ def clip_path(work: Path, i: int) -> Path:
     return work / f"c{i:03d}.mp4"
 
 
-def stage_clips(plan: dict, scenes_dir: Path, work: Path, lo: int, hi: int, fade: float) -> None:
+def clip_seconds(sc: dict, plan: dict, transition: str) -> float:
+    """How long this scene's clip must be.
+
+    Only a cross-fade consumes extra material, so only `xfade` gets the overlap.
+    Adding it unconditionally (or baking it into the plan) pushes every later
+    scene later by that much once the clips are concatenated — the narration
+    drift this whole pipeline exists to prevent.
+    """
+    dur = float(sc["duration"])
+    if transition == "xfade" and sc["index"] < len(plan["scenes"]):
+        dur += float((plan.get("transition") or {}).get("duration", 0.5))
+    return dur
+
+
+def clip_is_complete(path: Path, want: float) -> bool:
+    """True if `path` is a finished clip of the expected length."""
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    got = probe(path, "format=duration")
+    try:
+        return abs(float(got) - want) < 0.12
+    except ValueError:
+        return False
+
+
+def stage_clips(plan: dict, scenes_dir: Path, work: Path, lo: int, hi: int,
+                fade: float, transition: str, force: bool) -> None:
     fps = int(plan.get("fps", 30))
     work.mkdir(parents=True, exist_ok=True)
     todo = [s for s in plan["scenes"] if lo <= s["index"] <= hi]
     if not todo:
         sys.exit(f"error: no scenes in range {lo}..{hi}")
-    est = sum(float(s["duration"]) for s in todo) * 0.6
-    print(f"encoding scenes {todo[0]['index']}..{todo[-1]['index']} "
-          f"({len(todo)} clips, ~{est:.0f}s estimated)")
+
+    pending = todo if force else [
+        s for s in todo
+        if not clip_is_complete(clip_path(work, s["index"]), clip_seconds(s, plan, transition))
+    ]
+    skipped = len(todo) - len(pending)
+    est = sum(clip_seconds(s, plan, transition) for s in pending) * 0.6
+    print(f"scenes {todo[0]['index']}..{todo[-1]['index']}: "
+          f"{len(pending)} to encode, {skipped} already done (~{est:.0f}s estimated)")
     if est > 260:
         print("  NOTE: estimate is near the 300 s capsule_run_code ceiling — "
-              "split this range across two calls if it aborts.")
-    for sc in todo:
+              "narrow the range. Re-running is safe; finished clips are skipped.")
+
+    for sc in pending:
         still = scenes_dir / f"s{sc['index']:03d}.png"
         if not still.exists():
             sys.exit(f"error: missing {still} — run render_scenes.py first")
-        dur = float(sc["duration"])
+        dur = clip_seconds(sc, plan, transition)
+        final = clip_path(work, sc["index"])
+        # Encode to a scratch name and rename on success, so a clip killed by the
+        # 300 s ceiling never survives as a short-but-plausible file that the
+        # resume check would then accept.
+        part = final.with_suffix(".part.mp4")
         run(
             ["ffmpeg", "-y", "-loglevel", "error",
              "-loop", "1", "-t", f"{dur:.4f}", "-r", str(fps), "-i", str(still),
              "-vf", motion_filter(sc.get("motion", "still"), dur, fps, fade),
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-             "-pix_fmt", "yuv420p", str(clip_path(work, sc["index"]))],
+             "-pix_fmt", "yuv420p", str(part)],
             f"encoding scene {sc['index']}",
         )
+        part.replace(final)
         print(f"  clip {sc['index']:03d}  {dur:6.2f}s  {sc.get('motion', 'still')}")
 
 
-def require_all_clips(plan: dict, work: Path) -> list[Path]:
-    missing = [s["index"] for s in plan["scenes"] if not clip_path(work, s["index"]).exists()]
+def require_all_clips(plan: dict, work: Path, transition: str) -> list[Path]:
+    missing = [s["index"] for s in plan["scenes"]
+               if not clip_is_complete(clip_path(work, s["index"]),
+                                       clip_seconds(s, plan, transition))]
     if missing:
-        sys.exit(f"error: clips not encoded yet for scenes {missing} — "
-                 f"run --stage clips for those first")
+        sys.exit(f"error: clips missing or the wrong length for scenes {missing} — "
+                 f"run --stage clips for those first "
+                 f"(a clip built for a different --transition must be re-encoded)")
     return [clip_path(work, s["index"]) for s in plan["scenes"]]
 
 
@@ -184,6 +226,8 @@ def main() -> None:
     ap.add_argument("--transition", choices=["fade", "cut", "xfade"], default="fade")
     ap.add_argument("--fade", type=float, default=0.35, help="Per-clip fade-in seconds")
     ap.add_argument("--no-normalise", action="store_true", help="Skip the -14 LUFS pass")
+    ap.add_argument("--force", action="store_true",
+                    help="Re-encode clips even if a finished one exists")
     args = ap.parse_args()
 
     if not shutil.which("ffmpeg"):
@@ -194,10 +238,13 @@ def main() -> None:
 
     if args.stage in ("clips", "all"):
         fade = args.fade if args.transition == "fade" else 0.0
-        stage_clips(plan, Path(args.scenes), work, args.lo, args.hi, fade)
+        stage_clips(plan, Path(args.scenes), work, args.lo, args.hi, fade,
+                    args.transition, args.force)
 
     if args.stage == "clips":
-        done = sum(1 for s in plan["scenes"] if clip_path(work, s["index"]).exists())
+        done = sum(1 for s in plan["scenes"]
+                   if clip_is_complete(clip_path(work, s["index"]),
+                                       clip_seconds(s, plan, args.transition)))
         print(f"\n{done}/{len(plan['scenes'])} clips encoded. "
               f"Next: --stage clips for the rest, then --stage join")
         return
@@ -205,7 +252,7 @@ def main() -> None:
     audio = Path(plan["audio"])
     if not audio.exists():
         sys.exit(f"error: narration audio not found at {audio}")
-    clips = require_all_clips(plan, work)
+    clips = require_all_clips(plan, work, args.transition)
 
     print(f"joining {len(clips)} clips ({args.transition})")
     joined = join_xfade(plan, clips, work) if args.transition == "xfade" \

@@ -42,12 +42,15 @@ one thing you cannot re-derive, and the whole edit hangs off them.
 
 ```
 scene[i].start    = the first cue in the scene
-scene[i].duration = scene[i+1].start − scene[i].start + overlap
+scene[i].duration = scene[i+1].start − scene[i].start
 last scene        = runs to the end of the narration
 ```
 
-The overlap (0.5 s by default) is what a transition consumes, which is why the
-finished video still lines up with the audio.
+`duration` is the time the scene is **on screen**, and nothing is added to it for
+a transition. Only a cross-fade needs extra material, and only `build_video.py`
+knows whether one is happening — so it extends the clip at encode time. Padding
+the plan instead makes every clip longer than its narration interval, and once
+they are concatenated scene *i* starts `i × 0.5 s` late.
 
 Run it once with `--target` for a rough grid, **read the transcript**, then re-cut
 with `--breaks` where the argument actually turns:

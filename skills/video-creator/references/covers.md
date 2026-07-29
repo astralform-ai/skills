@@ -6,12 +6,16 @@ the frame horizontally becomes three cramped lines with the brand pill sliced
 off, and that is exactly what a cheap thumbnail looks like.
 
 ```python
-run(f'python3 {SK}/scripts/make_covers.py --from-plan ep/plan.json '
-    f'--kicker "EP 12" '
-    f'--title "音频即时钟" '
-    f'--subtitle "为什么时间轴不该由感觉决定" '
-    f'--points "SRT 决定时间轴,设计只有一套 token,渲染后逐帧自检" '
-    f'--brand "ASTRALFORM" -o ep/covers/')
+# q() is shlex.quote — episode text comes from the user's article/script and
+# goes through a shell, so it must be quoted, not hand-wrapped in double quotes.
+kicker   = "EP 12"
+title    = "音频即时钟"
+subtitle = "为什么时间轴不该由感觉决定"
+points   = "SRT 决定时间轴,设计只有一套 token,渲染后逐帧自检"
+brand    = "ASTRALFORM"
+run(f"python3 {SK}/scripts/make_covers.py --from-plan ep/plan.json "
+    f"--kicker {q(kicker)} --title {q(title)} --subtitle {q(subtitle)} "
+    f"--points {q(points)} --brand {q(brand)} -o ep/covers/")
 ```
 
 `--from-plan` inherits the video's design and, unless you override them, the

@@ -80,7 +80,8 @@ run(f"python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
     f"--scenes ep/scenes --stage clips --from 9")
 run(f"python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
     f"--scenes ep/scenes --stage join -o ep/renders/episode.mp4")
-run(f"python3 {SK}/scripts/verify.py ep/renders/episode.mp4 --plan ep/plan.json")
+run(f"python3 {SK}/scripts/verify.py ep/renders/episode.mp4 --plan ep/plan.json "
+    f"--scenes ep/scenes")
 ```
 
 (`run` and `SK` are the helper defined in SKILL.md — there is no bash kernel, so
@@ -88,7 +89,8 @@ shell work goes through `capsule.proc.exec` from the Python kernel.)
 
 `--stage join` concatenates by stream copy and mixes the narration, so it stays
 fast no matter how long the episode is. If a clips range does abort, re-run the
-same command — finished clips are reused.
+same command — finished clips are verified by length and skipped, and a clip cut
+off mid-encode is discarded rather than trusted.
 
 If you would rather not chunk, launch the long command detached inside the
 sandbox and poll a log instead:
