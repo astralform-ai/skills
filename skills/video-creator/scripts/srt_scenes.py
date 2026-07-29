@@ -117,7 +117,13 @@ def main() -> None:
 
     scenes = []
     for n, cue_i in enumerate(starts):
-        start = cues[cue_i]["start"]
+        # The first scene always starts at 0, even when the narration does not.
+        # A recording that opens with a few seconds of music or silence would
+        # otherwise leave the picture with nothing to show there, and since the
+        # clips are simply concatenated from video time zero, every scene would
+        # land that lead-in early. Holding the opening card over the lead keeps
+        # every later cut on its cue.
+        start = 0.0 if n == 0 else cues[cue_i]["start"]
         # A scene runs until the next one starts; the last runs to the end of the
         # narration. `duration` is the time the scene is actually on screen —
         # nothing is added for a transition. Baking a tail in here silently

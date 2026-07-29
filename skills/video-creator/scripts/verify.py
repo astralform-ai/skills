@@ -164,12 +164,22 @@ def main() -> None:
     scenes_dir = Path(args.scenes) if args.scenes else None
     refs: dict[int, bytes] = {}
     if scenes_dir:
+        missing_stills = []
         for sc in plan["scenes"]:
             still = scenes_dir / f"s{sc['index']:03d}.png"
             if still.exists():
                 refs[sc["index"]] = signature(still)
-        if not refs:
-            problems.append(f"no scene stills found in {scenes_dir} — alignment unchecked")
+            else:
+                missing_stills.append(sc["index"])
+        if missing_stills:
+            # A partial reference set silently skips the cuts it cannot judge,
+            # so the run would still print PASSED while claiming every cut was
+            # checked. Refuse to report alignment on an incomplete set.
+            refs = {}
+            problems.append(
+                f"scene stills missing from {scenes_dir} for scenes {missing_stills} — "
+                f"alignment cannot be checked; re-run render_scenes.py"
+            )
     else:
         print("\nNOTE: no --scenes given, so scene alignment is NOT checked. "
               "Duration alone cannot detect drift; pass --scenes.")
