@@ -5,9 +5,8 @@ Checks four things about the finished file that otherwise only surface after
 upload:
 
 * streams and duration agree with the narration;
-* **each scene appears when the narration says it does** (with `--scenes`) —
-  measured by locating each cut, not by sampling, because drift under half a
-  scene is invisible to a midpoint sample;
+* **each scene appears when the narration says it does** (with `--clips`) —
+  computed exactly from the joined clip durations, not inferred from pixels;
 * no two scenes render the same artwork (a duplicated or blank scene);
 * no frame is a flat field of one colour (a scene that failed to draw).
 
@@ -27,7 +26,7 @@ Judging a dark design by average brightness gives false alarms, so blankness is
 measured by how many distinct colours a frame actually has.
 
 Usage:
-    python3 verify.py renders/episode.mp4 --plan plan.json --scenes scenes/
+    python3 verify.py renders/episode.mp4 --plan plan.json --clips clips/ --scenes scenes/
     python3 verify.py renders/episode.mp4 --plan plan.json --sheet check.png
 """
 
@@ -62,68 +61,40 @@ def sig_distance(a: bytes, b: bytes) -> float:
     return sum(abs(x - y) for x, y in zip(a, b)) / len(a)
 
 
-def measure_starts(video: Path, tmp: Path, plan: dict, refs: dict[int, bytes],
-                   dur: float) -> dict[int, float]:
-    """Find when each scene actually appears, by bisecting for the cut.
+def measure_starts(clips_dir: Path, plan: dict) -> tuple[dict[int, float], list[int]]:
+    """When each scene actually appears, computed from the clips that were joined.
 
-    Sampling a scene's midpoint is not enough: drift has to exceed half a scene
-    before the midpoint lands in the wrong one, so several seconds of
-    accumulated error sails through. Locating the cut itself detects drift at
-    the scale that matters (fractions of a second).
+    The join is a stream copy, so a scene's on-screen start is exactly the sum of
+    the durations of the clips before it — and `ffprobe` reports those durations
+    exactly. Comparing that sum against the plan is the whole alignment check.
+
+    An earlier version of this file tried to find each cut by matching frames
+    against the scene stills. That is a hard computer-vision problem standing in
+    for arithmetic, and it failed three different ways on correct video: the
+    search window overran into a third scene, mid-fade frames resembled whichever
+    card was closer in grey, and near-black frames matched a full-bleed card.
+    Every one of those was a false alarm on a video that was fine.
     """
-    scenes = plan["scenes"]
-    observed: dict[int, float] = {scenes[0]["index"]: 0.0}
-    probe_png = tmp / "boundary.png"
-
-    def past(t: float, prev_i: int) -> bool | None:
-        """Has the outgoing scene stopped being the one on screen?
-
-        Deliberately asks 'is this still `prev`?' rather than 'is this `cur`?'.
-        The narrower question is not monotone: a short scene lets the search
-        window reach the scene *after* `cur`, where 'closer to cur than prev'
-        can flip back to false and send the bisection to a wrong answer. Asking
-        only about `prev` stays true once the cut has happened, however far past
-        it the probe lands.
-        """
-        if not grab(video, min(t, max(0.0, dur - 0.05)), probe_png):
-            return None
-        sig = signature(probe_png)
-        best = min(refs, key=lambda i: sig_distance(sig, refs[i]))
-        return best != prev_i
-
-    for n in range(1, len(scenes)):
-        prev_i, cur_i = scenes[n - 1]["index"], scenes[n]["index"]
-        if prev_i not in refs or cur_i not in refs:
+    starts: dict[int, float] = {}
+    unmeasured: list[int] = []
+    t = 0.0
+    for sc in plan["scenes"]:
+        i = sc["index"]
+        clip = clips_dir / f"c{i:03d}.mp4"
+        if not clip.exists():
+            unmeasured.append(i)
+            # Fall back to the plan so later scenes stay anchored; the caller
+            # reports the gap rather than quietly trusting an unchecked cut.
+            t = float(sc["start"]) + float(sc["duration"])
             continue
-        prev_len = float(scenes[n - 1]["duration"])
-        lo = observed[prev_i] + min(0.4, prev_len / 3)   # inside the outgoing scene
-        hi = min(dur - 0.05, observed[prev_i] + prev_len + 4.0)
-        if lo >= hi:
-            continue
-        at_hi = past(hi, prev_i)
-        if at_hi is None:
-            continue
-        if not at_hi:
-            # Still showing the outgoing scene at the far edge — report the edge
-            # so a large drift surfaces rather than being skipped.
-            observed[cur_i] = hi
-            continue
-        if past(lo, prev_i):
-            # Already switched at the near edge: the outgoing scene is shorter
-            # than planned, so the cut is at or before lo.
-            observed[cur_i] = lo
-            continue
-        for _ in range(8):
-            mid = (lo + hi) / 2
-            r = past(mid, prev_i)
-            if r is None:
-                break
-            if r:
-                hi = mid
-            else:
-                lo = mid
-        observed[cur_i] = (lo + hi) / 2
-    return observed
+        starts[i] = t
+        d = probe(clip, "format=duration")
+        try:
+            t += float(d)
+        except ValueError:
+            unmeasured.append(i)
+            t = float(sc["start"]) + float(sc["duration"])
+    return starts, unmeasured
 
 
 def probe(path: Path, entries: str) -> str:
@@ -147,7 +118,9 @@ def main() -> None:
     ap.add_argument("video")
     ap.add_argument("--plan", required=True)
     ap.add_argument("--scenes", default="",
-                    help="Scene stills dir — enables the scene-alignment check")
+                    help="Scene stills dir — enables the duplicate-artwork check")
+    ap.add_argument("--clips", default="clips",
+                    help="Per-scene clips dir — enables the alignment check")
     ap.add_argument("--sheet", default="", help="Write a contact sheet of the sampled frames")
     args = ap.parse_args()
 
@@ -231,16 +204,19 @@ def main() -> None:
         print(f"  {sc['index']:03d}  t={t:7.2f}s  {colours:6d} colours  {digest[:10]}{flag}")
 
     # --- when does each scene actually appear? ------------------------------
-    # The check that matters. Everything above can be green on a video whose
-    # picture has slid seconds away from the voice.
-    if refs:
-        tol = 0.75
-        observed = measure_starts(video, tmp, plan, refs, dur)
+    # Exact arithmetic, not image matching: the join is a stream copy, so a
+    # scene's on-screen start is the sum of the preceding clip durations.
+    clips_dir = Path(args.clips)
+    if clips_dir.is_dir():
+        tol = 0.35
+        observed, unmeasured = measure_starts(clips_dir, plan)
         print("\nscene starts (narration vs picture)")
         worst = 0.0
         for sc in plan["scenes"]:
             i = sc["index"]
             if i not in observed:
+                print(f"  {i:03d}  narration {float(sc['start']):7.2f}s      "
+                      f"clip missing — NOT MEASURED")
                 continue
             off = observed[i] - float(sc["start"])
             worst = max(worst, abs(off))
@@ -248,10 +224,16 @@ def main() -> None:
             print(f"  {i:03d}  narration {float(sc['start']):7.2f}s   "
                   f"picture {observed[i]:7.2f}s   {off:+6.2f}s{mark}")
             if abs(off) > tol:
-                problems.append(
-                    f"scene {i} appears {off:+.2f}s away from its narration cue"
-                )
+                problems.append(f"scene {i} appears {off:+.2f}s away from its narration cue")
+        if unmeasured:
+            problems.append(
+                f"clips missing for scenes {unmeasured} — their cuts are unverified"
+            )
         print(f"  worst |drift| {worst:.2f}s (tolerance {tol:.2f}s)")
+    else:
+        print(f"\nNOTE: {clips_dir}/ not found, so scene alignment is NOT checked. "
+              f"Duration alone cannot detect drift; pass --clips.")
+        problems.append(f"alignment unchecked — {clips_dir}/ not found")
 
     if args.sheet and frames:
         cols = 4
@@ -270,7 +252,7 @@ def main() -> None:
         for p in problems:
             print(f"  - {p}")
         sys.exit(1)
-    aligned = "cuts land on their cues, " if refs else ""
+    aligned = "cuts land on their cues, " if clips_dir.is_dir() else ""
     print(f"PASSED — {len(frames)} scenes, {aligned}all distinct, audio present.")
 
 

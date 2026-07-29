@@ -179,18 +179,20 @@ run(f"python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
 
 ```python
 run(f"python3 {SK}/scripts/verify.py ep/renders/episode.mp4 --plan ep/plan.json "
-    f"--scenes ep/scenes --sheet ep/check.png")
+    f"--clips ep/clips --scenes ep/scenes --sheet ep/check.png")
 ```
 
-**Pass `--scenes`** — without it the alignment check is skipped and the run is
-far weaker than it looks.
+**Pass `--clips` and `--scenes`** — without `--clips` the alignment check is
+skipped and the run is far weaker than it looks. Keep `clips/` until verify has
+run; only delete it afterwards.
 
-It checks three things the eye misses: that each scene is **on screen when the
-narration says it is** (matching the frame against the scene stills, which is
-the only way accumulated timing drift shows up — total duration cannot reveal
-it, because the `-shortest` mux truncates the overrun and the total still looks
-right); that no two scenes render the **same artwork**, comparing content with
-the per-scene progress bar masked out; and that no frame is blank. Do not skip
+It checks three things the eye misses. That each scene is **on screen when the
+narration says it is** — computed exactly, since the join is a stream copy and a
+scene's start is the sum of the clip durations before it, which is the only way
+accumulated drift shows up (total duration cannot reveal it, because the
+`-shortest` mux truncates the overrun and the total still looks right). That no
+two scenes render the **same artwork**, comparing content with the per-scene
+progress bar masked out. And that no frame is blank. Do not skip
 it because the video "looks fine" in the first ten seconds — drift grows toward
 the end, which is the part nobody re-watches before publishing.
 
@@ -249,7 +251,7 @@ These are measured in the capsule, not guessed. Each one fails quietly.
    the clips longer than their narration intervals, so once they are
    concatenated scene *i* starts `i × overlap` seconds late. The failure is
    invisible from the outside: `-shortest` truncates the overrun so the total
-   duration still matches the audio. `verify.py --scenes` is what catches it.
+   duration still matches the audio. `verify.py --clips` is what catches it.
 8. **Quote episode text with `shlex.quote` before it reaches a shell.** Titles
    and bullets come from the user's article or script; `$(…)`, backticks and `;`
    in them are commands, not punctuation.
