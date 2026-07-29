@@ -251,7 +251,7 @@ yf.screen("day_gainers", count=10)
 Available: `aggressive_small_caps, bond_etfs, conservative_foreign_funds, day_gainers, day_losers, growth_technology_stocks, high_yield_bond, most_actives, most_shorted_stocks, portfolio_anchors, small_cap_gainers, solid_large_growth_funds, solid_midcap_growth_funds, technology_etfs, top_etfs_us, top_mutual_funds, top_performing_etfs, undervalued_growth_stocks, undervalued_large_caps`.
 
 ```python
-# Custom query — ALWAYS include a region filter
+# Custom query — always pass sortField; scope region to what was asked for
 q = yf.EquityQuery("and", [
     yf.EquityQuery("eq", ["region", "us"]),
     yf.EquityQuery("gt", ["intradaymarketcap", 100_000_000_000]),
@@ -261,7 +261,27 @@ res = yf.screen(q, count=25, sortField="intradaymarketcap", sortAsc=False)
 [r["symbol"] for r in res["quotes"]]
 ```
 
-**Without the `region` filter the screener returns foreign cross-listings** — the same query without it returned `ZYRX.JK`, `ZS.MX`, `ZPLT.NE` instead of US mega-caps. Always constrain region.
+**`sortField` is not optional.** With no sort, Yahoo returns an arbitrary (reverse-alphabetical) slice, not the most relevant matches — the same query unsorted leads with `ZYRX.JK`, `ZS.MX`, `ZPLT.NE`. This is the single biggest cause of nonsense screener output.
+
+**Scope `region` to the geography the request actually implies** — do not hardcode `us`:
+
+| Request | `region` |
+|---|---|
+| US-oriented ("US large caps", "S&P names") | `us` |
+| A named market ("Japanese banks") | that region |
+| Genuinely global ("largest chipmakers anywhere") | omit it, then dedup — see below |
+
+Measured on the same tech + `>$100B` query:
+
+| Query | Matches | Leading results |
+|---|---|---|
+| no region, no sort | 1248 | `ZYRX.JK`, `ZS.MX`, `ZPLT.NE` |
+| no region, sorted | 1248 | `AAPLCO.CL`, `NVDACO.CL`, `AAPL.BA` |
+| region `us`, sorted | 55 | `AAPL`, `NVDA`, `MSFT`, `TSM`, `AVGO` |
+
+Unscoped screens are **dominated by cross-listings** — `AAPL`, `AAPL.BA`, `AAPL.MX`, and `AAPLCO.CL` are all Apple, which is why the count is 1248 rather than 55. On a global screen, dedup by company (suffix-strip the symbol, or group on `shortName`) instead of reaching for `region` to do it.
+
+Note `region: us` means "listed on a US market", not "US company" — it still returns `TSM`, `SONY`, `SAP`, and `ASML`.
 
 `yf.screen()` returns a dict with `start, count, total, quotes`. Discover filterable fields from an instance:
 
@@ -283,7 +303,8 @@ m.summary    # index-level snapshot
 
 ```python
 tk = yf.Tickers("AAPL MSFT NVDA")
-tk.tickers["AAPL"].info          # dict of Ticker objects
+tk.tickers                       # dict of Ticker objects, keyed by symbol
+tk.tickers["AAPL"].info          # that ticker's company-info dict
 ```
 
 For prices across many symbols, `yf.download()` is faster — it batches and threads.
@@ -353,7 +374,8 @@ Yahoo throttles aggressively. If you hit `YFRateLimitError`:
 - **Treating `info["dividendYield"]` as a fraction** — it is already a percent; a 100× error.
 - **Trusting an empty DataFrame as "no data exists"** — it usually means a bad symbol or an exceeded interval limit. Check `.empty` and report which.
 - **Requesting `1m` bars over months** — silently returns empty. Respect the interval caps.
-- **Screening without a `region` filter** — returns foreign cross-listings.
+- **Screening without `sortField`** — returns an arbitrary reverse-alphabetical slice rather than the top matches.
+- **Hardcoding `region: "us"` on a screen the user meant globally** — silently drops every non-US primary listing. Scope region to what was asked; dedup cross-listings separately.
 - **Calling `earnings_dates` without `lxml` installed** — raises `ImportError`.
 - **Constructing a new `Ticker` per field access** — refetches every time and triggers rate limits.
 - **Comparing the tz-aware index to naive datetimes** — raises; use `ignore_tz=True` or localize.
