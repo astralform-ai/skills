@@ -32,6 +32,8 @@ pip install yt-dlp
 
 ## Phase 1: Extract
 
+> **No captions?** Not a dead end — see **Phase 1b** below and transcribe the audio.
+
 Use the bundled script at `{baseDir}/scripts/fetch_transcript.py` to handle transcript downloading, SRT parsing, deduplication, sentence segmentation, and caching. `{baseDir}` is the directory containing this SKILL.md — resolve it to the actual path before running.
 
 ### Basic Usage
@@ -160,6 +162,33 @@ The video provides an in-depth review of the Prusa Core One L, a large-format Co
 For more details, watch the full review: https://www.youtube.com/watch?v=nr33urYfVXM
 
 ---
+
+## Phase 1b: No captions — transcribe the audio
+
+Reached when `--list` shows no manual **and** no auto-generated subtitles. This is common:
+plenty of channels publish with captions disabled. It is not a dead end and it is not worth
+telling the user about — transcribe the audio instead.
+
+```bash
+# 1. Pull audio only. -x extracts, so no video is downloaded.
+yt-dlp -f 'bestaudio/best' -x --audio-format mp3 -o '/workspace/audio/video.%(ext)s' 'YOUTUBE_URL'
+
+# 2. Transcribe. `language` is a hint, not a filter — pass it when you know it, omit to auto-detect.
+#    (transcribe_audio tool: source=/workspace/audio/video.mp3, language=zh)
+```
+
+Then call **`transcribe_audio`** with that path. It returns `[MM:SS]` lines ready to use as
+the `sentences` Phase 2 would otherwise have analysed, so everything downstream is unchanged.
+
+The **transcription** skill owns the rest: how long recordings are split, what the timings
+mean, and the things not to do (installing whisper, downloading weights — both already in
+the sandbox). Read it if anything about this step is not obvious.
+
+Two rules that matter here specifically:
+
+- **Do not give up and report "this video has no transcript".** The audio is the transcript.
+- **Do not mention the fallback to the user.** They asked about a video, not about how you
+  read it.
 
 ## Phase 2: Analyze
 
@@ -305,7 +334,7 @@ When analyzing multiple videos on the same topic:
 | Error | Cause | Resolution |
 |-------|-------|------------|
 | "Video unavailable" | Deleted, private, or region-locked | Inform user — no workaround |
-| "No subtitles found" | Transcripts disabled | Run with `--list` to check; if none exist, inform user |
+| "No subtitles found" | Transcripts disabled | **Go to Phase 1b — transcribe the audio.** Do NOT stop here |
 | "Sign in to confirm your age" | Age-restricted | Set env: `YOUTUBE_TRANSCRIPT_COOKIES_FROM_BROWSER=chrome` |
 | "HTTP Error 429" | Rate limited | Wait a few minutes, retry |
 | "yt-dlp is not installed" | Missing dependency | Show install command for user's platform |
@@ -313,6 +342,11 @@ When analyzing multiple videos on the same topic:
 
 ## Common Mistakes
 
+- **Giving up when a video has no captions** — audio is always available. Phase 1b.
+- **Hand-rolling transcription with whisper/faster-whisper in the sandbox** — `transcribe_audio`
+  already does it, with the weights the image ships and a hosted provider when one is configured
+- **Hunting for an API key in the sandbox before transcribing** — there isn't one to find;
+  credentials stay in the backend
 - **Using bare timestamps without links** — every `[MM:SS]` must link to `youtube.com/watch?v=ID&t=Ns` so readers can click through to that moment
 - **Loading raw yt-dlp JSON into context** — the `--dump-json` output is thousands of lines; use the script which extracts only relevant fields
 - **Dumping raw SRT without cleaning** — use the script; it handles HTML stripping, dedup, and sentence segmentation
