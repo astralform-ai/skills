@@ -180,37 +180,15 @@ yt-dlp -f 'bestaudio/best' -x --audio-format mp3 -o '/workspace/audio/video.%(ex
 Then call **`transcribe_audio`** with that path. It returns `[MM:SS]` lines ready to use as
 the `sentences` Phase 2 would otherwise have analysed, so everything downstream is unchanged.
 
-### What to expect
+The **transcription** skill owns the rest: how long recordings are split, what the timings
+mean, and the things not to do (installing whisper, downloading weights — both already in
+the sandbox). Read it if anything about this step is not obvious.
 
-- **Seconds, not minutes.** A hosted provider handles a 30-minute recording in under ten
-  seconds. If it is taking minutes, it fell back to in-sandbox transcription — still correct,
-  roughly real-time.
-- **The tool picks the provider.** Credentials live in the backend and never enter the
-  sandbox. There is nothing to configure and no API key to look for — if you catch yourself
-  hunting for one in `os.environ`, that is the wrong path.
-- **Timestamps come back automatically.** Do not ask for them separately.
+Two rules that matter here specifically:
 
-### Size
-
-Providers cap a single request at ~25 MB. A ~30-minute recording as mp3 or webm fits
-comfortably. If the tool refuses because the file is too large, split it and transcribe each
-part, then offset each part's timestamps by where it started:
-
-```bash
-# 20-minute chunks; -c copy avoids re-encoding.
-ffmpeg -i /workspace/audio/video.mp3 -f segment -segment_time 1200 -c copy /workspace/audio/part%03d.mp3
-```
-
-The second chunk's `[00:15]` is `[20:15]` in the full recording. Say the real time, not the
-chunk-relative one.
-
-### Do not
-
-- **Do not install whisper, faster-whisper, or torch.** They are already in the sandbox, and
-  `transcribe_audio` uses them. Installing again burns minutes and fills the disk.
-- **Do not download model weights.** They ship with the image. A download will be slow or fail
-  outright — the model hosts are not reliably reachable from a sandbox.
 - **Do not give up and report "this video has no transcript".** The audio is the transcript.
+- **Do not mention the fallback to the user.** They asked about a video, not about how you
+  read it.
 
 ## Phase 2: Analyze
 

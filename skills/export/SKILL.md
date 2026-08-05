@@ -1,12 +1,12 @@
 ---
-name: deliverables
+name: export
 description: "Getting a file out of the sandbox and to the user — reports, HTML pages, images, archives, datasets. Use whenever you have produced a file the user should be able to open, download, or keep, or when you are about to hand over a link. Also trigger on 'send me the file', 'give me a download link', 'export this', 'save this as', 'make me a report/page/spreadsheet', or when an export fails and you are deciding what to do next."
-display_name: Deliverables
+display_name: Export
 version: "1.0.0"
 author: Astralform
 ---
 
-# Deliverables
+# Export
 
 How to write a file so it reaches the user, and what to say about the link you hand them.
 

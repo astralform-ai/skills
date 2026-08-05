@@ -255,14 +255,33 @@
       "featured": true
     },
     {
-      "id": "deliverables",
-      "name": "deliverables",
-      "display_name": "Deliverables",
+      "id": "transcription",
+      "name": "transcription",
+      "display_name": "Transcription",
+      "description": "Turn speech into timestamped text — audio and video files, recordings, podcasts, meetings, voice memos, interviews. Covers where the audio can come from, how to split a long recording, and what not to install.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/transcription",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "audio",
+        "video",
+        "transcription",
+        "speech",
+        "media"
+      ],
+      "featured": false
+    },
+    {
+      "id": "export",
+      "name": "export",
+      "display_name": "Export",
       "description": "Getting a file out of the sandbox and to the user. Covers writing files so they are actually readable, which export tool to use, what a download link does and does not promise, and how to recover when an export fails.",
       "version": "1.0.0",
       "author": "Astralform",
       "type": "internal",
-      "path": "skills/deliverables",
+      "path": "skills/export",
       "logo": "logos/astralform.png",
       "tags": [
         "files",
