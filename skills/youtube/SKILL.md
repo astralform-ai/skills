@@ -32,6 +32,8 @@ pip install yt-dlp
 
 ## Phase 1: Extract
 
+> **No captions?** Not a dead end — see **Phase 1b** below and transcribe the audio.
+
 Use the bundled script at `{baseDir}/scripts/fetch_transcript.py` to handle transcript downloading, SRT parsing, deduplication, sentence segmentation, and caching. `{baseDir}` is the directory containing this SKILL.md — resolve it to the actual path before running.
 
 ### Basic Usage
@@ -160,6 +162,55 @@ The video provides an in-depth review of the Prusa Core One L, a large-format Co
 For more details, watch the full review: https://www.youtube.com/watch?v=nr33urYfVXM
 
 ---
+
+## Phase 1b: No captions — transcribe the audio
+
+Reached when `--list` shows no manual **and** no auto-generated subtitles. This is common:
+plenty of channels publish with captions disabled. It is not a dead end and it is not worth
+telling the user about — transcribe the audio instead.
+
+```bash
+# 1. Pull audio only. -x extracts, so no video is downloaded.
+yt-dlp -f 'bestaudio/best' -x --audio-format mp3 -o '/workspace/audio/video.%(ext)s' 'YOUTUBE_URL'
+
+# 2. Transcribe. `language` is a hint, not a filter — pass it when you know it, omit to auto-detect.
+#    (transcribe_audio tool: source=/workspace/audio/video.mp3, language=zh)
+```
+
+Then call **`transcribe_audio`** with that path. It returns `[MM:SS]` lines ready to use as
+the `sentences` Phase 2 would otherwise have analysed, so everything downstream is unchanged.
+
+### What to expect
+
+- **Seconds, not minutes.** A hosted provider handles a 30-minute recording in under ten
+  seconds. If it is taking minutes, it fell back to in-sandbox transcription — still correct,
+  roughly real-time.
+- **The tool picks the provider.** Credentials live in the backend and never enter the
+  sandbox. There is nothing to configure and no API key to look for — if you catch yourself
+  hunting for one in `os.environ`, that is the wrong path.
+- **Timestamps come back automatically.** Do not ask for them separately.
+
+### Size
+
+Providers cap a single request at ~25 MB. A ~30-minute recording as mp3 or webm fits
+comfortably. If the tool refuses because the file is too large, split it and transcribe each
+part, then offset each part's timestamps by where it started:
+
+```bash
+# 20-minute chunks; -c copy avoids re-encoding.
+ffmpeg -i /workspace/audio/video.mp3 -f segment -segment_time 1200 -c copy /workspace/audio/part%03d.mp3
+```
+
+The second chunk's `[00:15]` is `[20:15]` in the full recording. Say the real time, not the
+chunk-relative one.
+
+### Do not
+
+- **Do not install whisper, faster-whisper, or torch.** They are already in the sandbox, and
+  `transcribe_audio` uses them. Installing again burns minutes and fills the disk.
+- **Do not download model weights.** They ship with the image. A download will be slow or fail
+  outright — the model hosts are not reliably reachable from a sandbox.
+- **Do not give up and report "this video has no transcript".** The audio is the transcript.
 
 ## Phase 2: Analyze
 
@@ -305,7 +356,7 @@ When analyzing multiple videos on the same topic:
 | Error | Cause | Resolution |
 |-------|-------|------------|
 | "Video unavailable" | Deleted, private, or region-locked | Inform user — no workaround |
-| "No subtitles found" | Transcripts disabled | Run with `--list` to check; if none exist, inform user |
+| "No subtitles found" | Transcripts disabled | **Go to Phase 1b — transcribe the audio.** Do NOT stop here |
 | "Sign in to confirm your age" | Age-restricted | Set env: `YOUTUBE_TRANSCRIPT_COOKIES_FROM_BROWSER=chrome` |
 | "HTTP Error 429" | Rate limited | Wait a few minutes, retry |
 | "yt-dlp is not installed" | Missing dependency | Show install command for user's platform |
@@ -313,6 +364,11 @@ When analyzing multiple videos on the same topic:
 
 ## Common Mistakes
 
+- **Giving up when a video has no captions** — audio is always available. Phase 1b.
+- **Hand-rolling transcription with whisper/faster-whisper in the sandbox** — `transcribe_audio`
+  already does it, with the weights the image ships and a hosted provider when one is configured
+- **Hunting for an API key in the sandbox before transcribing** — there isn't one to find;
+  credentials stay in the backend
 - **Using bare timestamps without links** — every `[MM:SS]` must link to `youtube.com/watch?v=ID&t=Ns` so readers can click through to that moment
 - **Loading raw yt-dlp JSON into context** — the `--dump-json` output is thousands of lines; use the script which extracts only relevant fields
 - **Dumping raw SRT without cleaning** — use the script; it handles HTML stripping, dedup, and sentence segmentation

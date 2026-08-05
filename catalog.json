@@ -42,7 +42,7 @@
       "id": "agent-browser",
       "name": "agent-browser",
       "display_name": "Agent Browser",
-      "description": "Browser automation CLI for AI agents \u2014 navigate pages, fill forms, take screenshots, and extract data.",
+      "description": "Browser automation CLI for AI agents — navigate pages, fill forms, take screenshots, and extract data.",
       "version": "1.0.0",
       "author": "Vercel",
       "type": "external",
@@ -60,7 +60,7 @@
       "id": "remotion-best-practices",
       "name": "remotion-best-practices",
       "display_name": "Remotion Best Practices",
-      "description": "Best practices for Remotion \u2014 video creation in React. Domain-specific knowledge for compositions, animations, and rendering.",
+      "description": "Best practices for Remotion — video creation in React. Domain-specific knowledge for compositions, animations, and rendering.",
       "version": "1.0.0",
       "author": "Remotion",
       "type": "external",
@@ -222,7 +222,7 @@
       "id": "yfinance",
       "name": "yfinance",
       "display_name": "Yahoo Finance",
-      "description": "Stock market data from Yahoo Finance \u2014 prices, fundamentals, financial statements, options chains, analyst estimates, holdings, and screeners.",
+      "description": "Stock market data from Yahoo Finance — prices, fundamentals, financial statements, options chains, analyst estimates, holdings, and screeners.",
       "version": "1.0.0",
       "author": "Astralform",
       "type": "internal",
@@ -253,6 +253,25 @@
         "ffmpeg"
       ],
       "featured": true
+    },
+    {
+      "id": "deliverables",
+      "name": "deliverables",
+      "display_name": "Deliverables",
+      "description": "Getting a file out of the sandbox and to the user. Covers writing files so they are actually readable, which export tool to use, what a download link does and does not promise, and how to recover when an export fails.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/deliverables",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "files",
+        "export",
+        "download",
+        "deliverables",
+        "sandbox"
+      ],
+      "featured": false
     }
   ]
 }
