@@ -9,6 +9,13 @@ permissions:
   pull-requests: write
   id-token: write
   actions: read
+  # Required, not optional: a reusable workflow's permissions are INTERSECTED
+  # with the caller's, and requesting a scope the caller lacks is a startup
+  # failure — the run reports `startup_failure` with zero jobs and no log, so
+  # it reads as "the reviewer is broken" rather than "a permission is missing".
+  # astralform-ai/.github#3 added `packages: read` to the called workflow, so
+  # every caller must grant it too.
+  packages: read
 
 jobs:
   review:
