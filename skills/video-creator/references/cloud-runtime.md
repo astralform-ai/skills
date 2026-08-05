@@ -109,8 +109,13 @@ The capsule filesystem is not the deliverable, and the sandbox is disposable.
 
 **Deliver with `export_file`.** Copy the finished master, the covers and the
 copy into `/workspace/outputs/`, then call `export_file` on each one — it
-returns a permanent link. `capsule_download_url` also produces a URL, but that
-one dies with the sandbox, so it is for your own debugging, never for the user.
+returns a permanent link, and records the file as a conversation output so it
+renders in the UI. `capsule_download_url` returns a permanent object-storage
+link too, so it is also safe to hand over.
+
+The tool that dies with the sandbox is **`capsule_get_url`** — it maps a live
+port on the VM, so it 502s the moment the sandbox goes away. Use it to check
+your own work in a running preview, never as a deliverable.
 
 ```python
 run("mkdir -p /workspace/outputs && "

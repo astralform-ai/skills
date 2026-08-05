@@ -218,8 +218,10 @@ voice, with chapters derived from the scene plan. See `references/publishing.md`
 ### Step 8 · Deliver
 
 Copy the master, covers and copy into `/workspace/outputs/` and call
-`export_file` on each for permanent links — `capsule_download_url` expires with
-the sandbox. Show the contact sheet and a few frames inline so the user can
+`export_file` on each for permanent links. `capsule_download_url` is also
+permanent — it is `capsule_get_url` (a live port on the VM) that expires with
+the sandbox, so that one is never a deliverable. Show the contact sheet and a
+few frames inline so the user can
 judge the result without downloading anything.
 
 ## Gotchas

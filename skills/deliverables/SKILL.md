@@ -77,13 +77,20 @@ Two things to be accurate about when you describe it:
 
 | Tool | Use it for |
 |---|---|
-| `export_file` | **Deliverables.** Records the file so it appears in the files list |
-| `capsule_download_url` | A link to a file you do not want listed as a deliverable |
+| `export_file` | **Deliverables.** Takes a display name; requires `/workspace/outputs/` |
+| `capsule_download_url` | The same permanent link, for a file outside `/workspace/outputs/` |
 | `capsule_get_url` | **Never for the user.** Points at the sandbox VM and dies with it |
 
-`capsule_get_url` is a live preview for checking your own work. Handing it over produces a
-link that 502s as soon as the sandbox is reclaimed — usually minutes later, long after you
-have moved on.
+`export_file` and `capsule_download_url` deliver the same thing — they share one
+persist-and-confirm routine, so both give a permanent object-storage link AND list the file
+in the conversation. Reach for `export_file` by default: it takes a display name. Reach for
+`capsule_download_url` when the file is not under `/workspace/outputs/` (`export_file`
+hard-errors on that) or when you may call it repeatedly for one file, since it reuses the
+existing row instead of listing the file again.
+
+`capsule_get_url` is the odd one out — it maps a live **port** on the sandbox VM, not a
+file. It is a preview for checking your own work. Handing it over produces a link that 502s
+as soon as the sandbox is reclaimed — usually minutes later, long after you have moved on.
 
 ## When an export fails
 
