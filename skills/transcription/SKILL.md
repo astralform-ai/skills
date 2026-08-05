@@ -81,6 +81,12 @@ recording, never fifteen seconds into some chunk.
 If a file genuinely cannot be split, the tool says so and stops. That message is terminal:
 it means the audio itself is unusable, not that you should retry with a smaller piece.
 
+**Do not convert a file first to make it "splittable".** Splitting copies the audio stream
+rather than re-encoding it, and every common audio container survives that: `mp3`, `m4a`,
+`wav`, `ogg`, `opus` and `flac` were each measured splitting cleanly. So a refusal is never
+a verdict on the format — transcoding to mp3 to get around one just costs a minute and
+returns the same answer.
+
 ## Do not
 
 - **Do not install whisper, faster-whisper, or torch.** They are already in the sandbox, and
