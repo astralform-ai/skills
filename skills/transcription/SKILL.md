@@ -36,8 +36,8 @@ An attached recording does **not** need to be downloaded into the sandbox first 
 asset id straight to the tool. Likewise a direct media URL: hand over the URL and let the
 backend fetch it.
 
-A sandbox path is for when neither applies: you extracted audio from a video, split a long
-file, or pulled media off a page.
+A sandbox path is for when neither applies: you extracted audio from a video, or pulled
+media off a page.
 
 ### Getting to one of those three
 
@@ -70,18 +70,16 @@ those first and only falls back here.
 
 ## Long recordings
 
-A single request caps at ~25 MB. A ~30-minute recording as mp3 fits comfortably. If the tool
-refuses because the file is too large, split it, transcribe each part, then offset each
-part's timestamps by where that part started:
+**Length is not your problem.** A single provider request caps at ~25 MB, but the tool
+splits anything larger and stitches the parts back together itself, with each part's
+timestamps placed back on the full recording's timeline. Hand it the whole file. Do not
+pre-split, and do not shorten a recording to make it fit.
 
-```bash
-# 20-minute chunks; -c copy avoids re-encoding.
-ffmpeg -i /workspace/audio/full.mp3 -f segment -segment_time 1200 -c copy /workspace/audio/part%03d.mp3
-```
+The timestamps you get back are always absolute — a `[20:15]` is twenty minutes into the
+recording, never fifteen seconds into some chunk.
 
-The second chunk's `[00:15]` is `[20:15]` in the full recording. Say the real time, not the
-chunk-relative one — a timestamp that does not match what the user hears is worse than no
-timestamp.
+If a file genuinely cannot be split, the tool says so and stops. That message is terminal:
+it means the audio itself is unusable, not that you should retry with a smaller piece.
 
 ## Do not
 
