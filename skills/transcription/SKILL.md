@@ -46,10 +46,13 @@ file, or pulled media off a page.
 ffmpeg -i /workspace/input.mp4 -vn -c:a libmp3lame /workspace/audio/input.mp3
 
 # Media off a page (not a direct file URL). -x extracts audio, so no video is downloaded.
+pip install yt-dlp   # not pre-installed; ffmpeg and deno, which it needs, are
 yt-dlp -f 'bestaudio/best' -x --audio-format mp3 -o '/workspace/audio/%(title)s.%(ext)s' 'URL'
 ```
 
-`ffmpeg` and `yt-dlp` are already in the sandbox. For YouTube specifically, use the
+`ffmpeg` is already in the sandbox. `yt-dlp` is **not** — `pip install yt-dlp` first; it is
+a small, fast install. (`deno` *is* baked in, precisely because yt-dlp needs it: without it
+yt-dlp silently drops to a degraded path that misses formats.) For YouTube specifically, use the
 **youtube** skill — published captions are faster and cheaper than transcribing, so it tries
 those first and only falls back here.
 
