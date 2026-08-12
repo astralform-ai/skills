@@ -255,6 +255,24 @@
       "featured": true
     },
     {
+      "id": "video-chain",
+      "name": "video-chain",
+      "display_name": "Video Chain",
+      "description": "Generate a video longer than one clip: animate a still, carry its last frame into the next generation, and join the segments into one continuous shot.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/video-chain",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "video",
+        "media",
+        "generation",
+        "ffmpeg"
+      ],
+      "featured": true
+    },
+    {
       "id": "transcription",
       "name": "transcription",
       "display_name": "Transcription",
