@@ -3,11 +3,15 @@
 
 `generate_video` animates a still into ONE clip. To go further you feed that
 clip's last frame back in as the next clip's first frame. This script owns the
-three steps the model must not do by hand:
+mechanical steps the model must not do by hand:
 
   preflight    is this sandbox able to do the chain at all?
   last-frame   pull the final frame out of a finished clip
   stitch       join the segments into one file and prove the join is right
+  probe        size, duration and codec of a clip or asset id
+
+Generation is NOT here and never will be: `generate_video` is a tool on the
+model's surface, which this script cannot call.
 
 Every subcommand prints ONE json object on stdout and exits non-zero on
 failure, so a caller reads a result instead of parsing ffmpeg's prose.

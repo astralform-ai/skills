@@ -38,8 +38,10 @@ places. Confusing them is the most common way a chain dies before it starts.
 | Where it runs | in the VM | on the backend |
 
 Dotted is the library; underscored is a tool. **`capsule.download_url(...)` does
-not exist.** The library has no top-level functions at all — only the modules
-`fs`, `proc`, `git`, `web`, `memory`, `knowledge`, `connectors`. Neither
+not exist** — the library has no top-level functions at all. Everything in it is
+`capsule.<module>.<function>`, as in `capsule.proc.exec` or
+`capsule.fs.write_file`; run `help(capsule)` inside `capsule_run_code` for the
+module list rather than trusting one copied into a document. Neither
 `generate_video` nor `capsule_download_url` can be imported, wrapped, or shelled
 out to from inside `capsule_run_code`: they run on the backend, where the
 sandbox cannot reach.
@@ -47,8 +49,8 @@ sandbox cannot reach.
 Two consequences worth reading twice:
 
 - **The loop below is inherently multi-response.** You cannot write the chain as
-  one script. Each segment is a tool call, then its result, then the next block
-  of sandbox code — that alternation is the skill, not an inefficiency to
+  one script. Each segment costs three responses, and only one of them runs code
+  in the sandbox — that alternation is the skill, not an inefficiency to
   optimize away.
 - **In this document, a fence marked `python` runs inside `capsule_run_code`.**
   Everything else is a tool call, and is written as prose so it cannot be
@@ -119,8 +121,9 @@ technical one.
 ## The loop
 
 Segment 1 is `generate_video` against the user's still. Every segment after it
-is the same three calls — sandbox code, then a tool, then a tool, and they
-cannot share a response.
+is the same three tool calls, in three separate responses: `capsule_run_code`,
+then `capsule_download_url`, then `generate_video`. Only the first of those
+carries library code — that is the whole asymmetry.
 
 `chain.py` has exactly four subcommands: `preflight`, `last-frame`, `stitch`,
 `probe`. It does not generate anything and never will — generation is the
