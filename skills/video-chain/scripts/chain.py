@@ -16,6 +16,7 @@ failure, so a caller reads a result instead of parsing ffmpeg's prose.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import glob
 import json
 import os
@@ -413,6 +414,12 @@ def cmd_stitch(args: argparse.Namespace) -> None:
             bytes=result["bytes"],
         )
 
+    # Every attempt failed, so nothing may remain at ``out``. ffmpeg writes as it
+    # goes, and a rejected join leaves a file that is a plausible video — short by
+    # a segment, but complete-looking, at exactly the path the caller was about to
+    # publish. The result says ok:false; the artifact must not say otherwise.
+    with contextlib.suppress(OSError):
+        os.remove(out)
     fail("could not join the segments", attempts=problems, expected_seconds=expected)
 
 
