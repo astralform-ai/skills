@@ -2,7 +2,23 @@ name: PR Review
 
 on:
   pull_request:
-    types: [opened]
+    # `synchronize` is the load-bearing one, and its absence is silent. With
+    # `opened` alone the reviewer sees a PR exactly once — the commit it was
+    # opened with — and every push after that ships unreviewed. Worse than
+    # unreviewed: the `review / review` check belongs to the commit it ran on,
+    # so after a push it is not stale-green but ABSENT, while
+    # `mergeStateStatus` still reports CLEAN because a check that never ran
+    # blocks nothing. A gate reading "CLEAN + review SUCCESS" therefore goes
+    # green over code no reviewer has seen.
+    #
+    # Already happened here: #18 merged three commits and the reviewer only
+    # ever ran on the first, so the two `stitch` fixes after it landed
+    # unreviewed. Astralform hit the same thing on its #726 and fixed it there;
+    # this repo kept the broken shape.
+    #
+    # `reopened` is a distinct activity type from `opened`, so close/reopen was
+    # never a workaround either.
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
