@@ -71,8 +71,8 @@ for the two `capsule_`-prefixed tools below as well — `capsule.download_url(..
 easiest of the three to get wrong. Confusing the two surfaces is how an export turns into
 an `AttributeError` loop instead of a delivered file.
 
-`export_file` returns a **permanent address**. It stays valid, the file appears in the conversation's
-files list, and it survives a page refresh. Hand that link over as-is.
+`export_file` returns a **permanent address**. It stays valid, the file appears in the
+conversation's files list, and it survives a page refresh. Hand that link over as-is.
 
 Two things to be accurate about when you describe it:
 
