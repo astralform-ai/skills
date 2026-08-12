@@ -37,8 +37,9 @@ places. Confusing them is the most common way a chain dies before it starts.
 | How you call it | `import capsule`, inside `capsule_run_code` | a direct tool call |
 | Where it runs | in the VM | on the backend |
 
-Dotted is the library; underscored is a tool. **`capsule.download_url(...)` does
-not exist** — the library has no top-level functions at all. Everything in it is
+Dotted is the library; underscored is a tool. **`capsule.download_url(...)` is
+not a library function** — there is no spelling that reaches that tool from
+inside `capsule_run_code`. Everything the library actually does is
 `capsule.<module>.<function>`, as in `capsule.proc.exec` or
 `capsule.fs.write_file`; run `help(capsule)` inside `capsule_run_code` for the
 module list rather than trusting one copied into a document. Neither
