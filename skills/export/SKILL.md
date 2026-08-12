@@ -59,11 +59,16 @@ files list shows.
 
 ## Getting it to the user
 
-```
-export_file(path="/workspace/outputs/report.html", name="Q3 Report.html")
-```
+Call the **`export_file` tool** — as a tool, in its own response — with
+`path="/workspace/outputs/report.html"` and `name="Q3 Report.html"`.
 
-Returns a **permanent address**. It stays valid, the file appears in the conversation's
+It is NOT part of the `capsule` library. `capsule.export_file(...)` does not do anything,
+and no spelling reaches it from inside `capsule_run_code`: it runs on the backend, which
+the sandbox cannot call. Everything `capsule` provides is dotted through a module
+(`capsule.fs.write_file` above); the tools are underscored and invoked directly. Confusing
+the two is how an export turns into an `AttributeError` loop instead of a delivered file.
+
+It returns a **permanent address**. It stays valid, the file appears in the conversation's
 files list, and it survives a page refresh. Hand that link over as-is.
 
 Two things to be accurate about when you describe it:
