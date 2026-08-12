@@ -169,7 +169,11 @@ These are properties of the pipeline, not of any one run.
    invisible. Past that, either pass `--match-color seg-01-start.png` to
    `last-frame` (it pulls the frame's levels part-way back toward the opening
    one), or re-anchor: start a fresh chain from a new still and treat the result
-   as a cut.
+   as a cut. `--match-color` is a trade, not a free win: the correction lands on
+   the handoff frame while the previous clip still ends on the uncorrected one,
+   so it shows up as a one-frame step at that seam — about one link's worth of
+   drift, against a drift that otherwise keeps growing with every link. That is
+   why it is for long chains and actively worse on short ones.
 4. **A blurred last frame propagates.** If a segment ends mid-motion, its final
    frame is motion-blurred and the next segment starts from blur. Prefer prompts
    that come to rest. `--from-end 2` steps back one frame as a repair, but every

@@ -124,14 +124,21 @@ def resolve_clip(asset_id: str, wait_seconds: float = 20.0) -> str:
     raise AssertionError("unreachable")
 
 
-def stage(path: str) -> str:
-    """Copy *path* to real disk and confirm the copy is whole.
+def stage(path: str, tag: str = "") -> str:
+    """Copy *path* to real disk under a caller-unique name, and confirm it is whole.
 
     Two reads of the same source can disagree across the FUSE mount, so the copy
     is checked against a size measured AFTER it, and retried once.
+
+    ``tag`` is not cosmetic. Keyed on the basename alone, two sources named
+    ``clip.mp4`` in different directories stage onto ONE file — and since every
+    later check reads the staged paths, `stitch` would then probe the survivor
+    twice, expect twice its duration, concatenate it twice, measure exactly that,
+    and report success for a video with a segment missing and another doubled.
+    Every caller staging more than one file must pass a distinct tag.
     """
     os.makedirs(WORK_DIR, exist_ok=True)
-    local = os.path.join(WORK_DIR, os.path.basename(path))
+    local = os.path.join(WORK_DIR, f"{tag}{os.path.basename(path)}")
     if os.path.abspath(path) == os.path.abspath(local):
         return local
     for attempt in (1, 2):
@@ -197,6 +204,12 @@ def match_color(frame_path: str, reference_path: str, strength: float) -> None:
     a little; over four or five links those shifts compound in one direction and
     the last segment no longer looks like the first. Blending part-way back
     toward the opening frame arrests that without repainting the image.
+
+    It is a TRADE. Only the handoff frame is corrected — the clip before it still
+    ends on the uncorrected one — so the seam carries a one-frame step of roughly
+    a single link's drift, in exchange for drift that no longer grows with the
+    chain. Worth it past four links; actively worse below that, which is why the
+    caller has to ask for it.
     """
     try:
         import numpy as np
@@ -306,7 +319,7 @@ def cmd_stitch(args: argparse.Namespace) -> None:
     if len(sources) < 2:
         fail("stitch needs at least two clips", given=sources)
 
-    staged = [stage(p) for p in sources]
+    staged = [stage(p, f"{i:02d}-") for i, p in enumerate(sources)]
     facts = [probe(p) for p in staged]
 
     shapes = {(f["width"], f["height"]) for f in facts}
