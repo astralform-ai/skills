@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+# detect-reviewers.sh <PR#>
+#
+# Returns a JSON profile of which reviewers are on the PR and whether each has
+# signaled approval via its OWN mechanism. Critical: neither Claude nor Copilot
+# ever submits GitHub's formal APPROVED state — they only emit COMMENTED.
+# Approval is detected per-bot:
+#
+#   claude[bot]                    no reliable structural signal; layered
+#                                  heuristic — positive-signal-first, then
+#                                  blocker scan with negation-context stripping
+#   copilot-pull-request-reviewer  COMMENTED review with 0 inline comments
+#   github-advanced-security[bot]  ALL CodeQL check-runs on head commit are
+#                                  conclusion=success (or no CodeQL ran)
+#   any other [bot]                fallback: state == APPROVED only
+#   humans                         state == APPROVED OR CHANGES_REQUESTED
+#
+# Honors GH_REPO env var or current cwd's gh-resolved repo for cross-repo use.
+#
+# Output schema:
+# {
+#   "pr_number": <int>,
+#   "pr_author": "<login>",
+#   "reviewers": {
+#     "<login>": {
+#       "kind": "bot|human",
+#       "last_review_state": "APPROVED|CHANGES_REQUESTED|COMMENTED|null",
+#       "is_approved": true|false,
+#       "approval_source": "<adapter name explaining why>"
+#     }
+#   },
+#   "all_bots_approved": bool,
+#   "any_changes_requested": bool,
+#   "bots_pending_signoff": [<login>...],   // bots in COMMENTED state with no approval signal yet
+#   "humans": [<login>...],
+#   "bots": [<login>...]
+# }
+
+set -euo pipefail
+
+PR="${1:?PR number required}"
+
+# Owner/repo from gh's repo-resolution. Honors GH_REPO env or current repo.
+repo_data="$(gh pr view "$PR" --json url,reviews,author 2>/dev/null)"
+owner_repo="$(echo "$repo_data" | jq -r '.url | capture("github.com/(?<o>[^/]+)/(?<r>[^/]+)/") | "\(.o)/\(.r)"')"
+pr_author="$(echo "$repo_data" | jq -r '.author.login // ""')"
+
+# Bot detection rule. GitHub returns app logins with [bot] suffix in some
+# surfaces and without it in others — match either way.
+is_bot_login() {
+  local login="$1"
+  case "$login" in
+    *"[bot]") return 0 ;;
+    claude|copilot-pull-request-reviewer|github-advanced-security|dependabot|renovate|sentry-io)
+      return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Adapter: Claude. No reliable structural signal. Three-tier heuristic:
+#   1. Explicit positive signals (ready to merge, lgtm, no major issues, ...)
+#      win regardless of other content. This is the load-bearing tier — Claude
+#      consistently ends approval comments with one of these phrases.
+#   2. Negation contexts ("not a blocker", "non-blocker", "no blocker") are
+#      stripped before keyword matching. Empirically, Claude often writes
+#      sentences like "this is non-blocking" when soft-approving, and a naive
+#      blocker-keyword grep would falsely flag them. (PR #42 caught this.)
+#   3. Negative signals (blocker, must fix, critical, do not merge, ...) on
+#      the cleaned body block approval.
+#   4. If neither positive nor negative signal, conservative default = false.
+#
+# The body lookup uses --slurp so multi-page comment streams resolve to a
+# single canonical "latest" via timestamp sort, not per-page last.
+claude_is_approved() {
+  local body
+  body="$(gh api "repos/$owner_repo/issues/$PR/comments" --paginate --slurp \
+    | jq -r '[.[][]] | sort_by(.created_at) | map(select(.user.login == "claude[bot]")) | last | .body // ""')"
+  [ -z "$body" ] && return 1
+
+  # Tier 1: explicit positive signals — these win.
+  if echo "$body" | grep -qiE '\b(ready to merge|approve[sd]?|approving|lgtm|no major issues|no issues|all findings (are )?resolved|looks good( to merge)?|no remaining issues)\b'; then
+    return 0
+  fi
+
+  # Tier 2: strip negation contexts before checking blocker keywords.
+  # Patterns to remove: "not a blocker", "no blocker", "non-blocker", "not blocking",
+  # "non-blocking", and the same for blockers/critical/must fix.
+  # Use perl (not sed): BSD sed on macOS doesn't support `\b` word boundaries.
+  # Perl 5 is on macOS by default and standard on Linux GitHub Actions runners.
+  local cleaned
+  cleaned="$(echo "$body" | perl -pe 's/\b(not a |not |no |non-?)(blocker|blockers|blocking|critical|must[ -]?fix)\b/_/gi')"
+
+  # Tier 3: blocker keywords on the cleaned body.
+  if echo "$cleaned" | grep -qiE '\b(blocker|blockers|must fix|critical|fix before merge|do not merge|request(ing|s) changes)\b'; then
+    return 1
+  fi
+
+  # Tier 4: ambiguous — conservative default (caller will explicit-ping).
+  return 1
+}
+
+# Adapter: Copilot reviewer. Approval ≈ COMMENTED review with 0 inline
+# review-comments by Copilot. Inference, not a documented signal.
+copilot_is_approved() {
+  local inline_count
+  inline_count="$(gh api "repos/$owner_repo/pulls/$PR/comments" --paginate \
+    --jq '[.[] | select(.user.login == "copilot-pull-request-reviewer[bot]")] | length')"
+  [ "$inline_count" = "0" ] && return 0
+  return 1
+}
+
+# Adapter: CodeQL (github-advanced-security[bot]). Per the SKILL.md reviewer
+# table, CodeQL's approval signal is "check-run conclusion success", NOT a
+# review state. Look up check-runs on the PR's head commit and consider it
+# approved iff every CodeQL-related check-run has conclusion=success. If
+# CodeQL isn't configured for this repo (no matching check-runs), treat as
+# vacuously approved — there's no blocker.
+codeql_is_approved() {
+  local head_sha statuses
+  head_sha="$(gh api "repos/$owner_repo/pulls/$PR" --jq '.head.sha')"
+
+  statuses="$(gh api "repos/$owner_repo/commits/$head_sha/check-runs?per_page=100" --paginate --slurp \
+    | jq -c '[.[].check_runs[] | select((.app.slug // "" | test("github-advanced-security|codeql"; "i")) or (.name | test("CodeQL|code-scanning|Analyze \\("; "i"))) | .conclusion]')"
+
+  # No matching check-runs → vacuously approved.
+  if [ "$(echo "$statuses" | jq 'length')" = "0" ]; then
+    return 0
+  fi
+  echo "$statuses" | jq -e 'all(. == "success")' >/dev/null && return 0
+  return 1
+}
+
+# Compute per-reviewer state. We return both an `is_approved` boolean (per the
+# adapter for known bots, or the formal review state for everything else) and
+# the original `last_review_state` for transparency.
+#
+# Decommissioned reviewers are dropped outright. The Codex/ChatGPT integration
+# is no longer subscribed, so any review it left on an older PR is stale: left
+# in place it would match the generic `*[bot]` fallback, never reach the formal
+# APPROVED state, and hold `all_bots_approved` false forever.
+echo "$repo_data" | jq -c '
+  ["chatgpt-codex-connector[bot]", "chatgpt-codex-connector", "codex"] as $decommissioned |
+  ([.reviews[]
+     | select(.author.login != "'"$pr_author"'")
+     | select((.author.login | ascii_downcase) as $l | ($decommissioned | index($l) | not))
+     | {login: .author.login, state: .state, submittedAt: .submittedAt}]
+    | group_by(.login)
+    | map(sort_by(.submittedAt) | last)
+    | map({(.login): {state: .state}})
+    | add // {}) as $latest |
+  $latest | to_entries
+' | jq -c '.[]' | while read -r entry; do
+  login="$(echo "$entry" | jq -r '.key')"
+  state="$(echo "$entry" | jq -r '.value.state')"
+
+  if is_bot_login "$login"; then
+    kind="bot"
+    case "$login" in
+      "claude[bot]"|claude)
+        if claude_is_approved; then
+          is_approved=true; source="claude-soft-positive-or-no-blockers"
+        else
+          is_approved=false; source="claude-no-positive-signal-or-blockers"
+        fi
+        ;;
+      "copilot-pull-request-reviewer[bot]"|"copilot-pull-request-reviewer")
+        if copilot_is_approved; then
+          is_approved=true; source="copilot-zero-inline-comments"
+        else
+          is_approved=false; source="copilot-has-inline-comments"
+        fi
+        ;;
+      "github-advanced-security[bot]"|"github-advanced-security")
+        if codeql_is_approved; then
+          is_approved=true; source="codeql-checks-success"
+        else
+          is_approved=false; source="codeql-checks-not-all-success"
+        fi
+        ;;
+      *)
+        # Unknown bot: fall back to formal review state.
+        if [ "$state" = "APPROVED" ]; then is_approved=true; else is_approved=false; fi
+        source="formal-review-state"
+        ;;
+    esac
+  else
+    kind="human"
+    if [ "$state" = "APPROVED" ]; then is_approved=true; else is_approved=false; fi
+    source="formal-review-state"
+  fi
+
+  jq -n --arg login "$login" --arg kind "$kind" --arg state "$state" \
+        --argjson is_approved "$is_approved" --arg source "$source" \
+        '{($login): {kind: $kind, last_review_state: $state, is_approved: $is_approved, approval_source: $source}}'
+done | jq -s --arg pr "$PR" --arg pr_author "$pr_author" '
+  (add // {}) as $reviewers |
+  ($reviewers | to_entries) as $entries |
+  ($entries | map(select(.value.kind == "bot"))) as $bot_entries |
+  ($entries | map(select(.value.kind == "human"))) as $human_entries |
+  {
+    pr_number: ($pr | tonumber),
+    pr_author: $pr_author,
+    reviewers: $reviewers,
+    all_bots_approved: (
+      ($bot_entries | length) > 0 and
+      ($bot_entries | all(.value.is_approved == true))
+    ),
+    any_changes_requested: (
+      $entries | any(.value.last_review_state == "CHANGES_REQUESTED")
+    ),
+    bots_pending_signoff: [$bot_entries[] | select(.value.is_approved == false) | .key],
+    humans: [$human_entries[].key],
+    bots: [$bot_entries[].key]
+  }
+'
