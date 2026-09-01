@@ -10,8 +10,8 @@
 #                                  heuristic — positive-signal-first, then
 #                                  blocker scan with negation-context stripping
 #   copilot-pull-request-reviewer  COMMENTED review with 0 inline comments on
-#                                  the PR's current head SHA and a latest
-#                                  review that postdates the head commit
+#                                  the PR's current head SHA and whose latest
+#                                  review was submitted against the head SHA
 #   github-advanced-security[bot]  ALL CodeQL check-runs on head commit are
 #                                  conclusion=success (or no CodeQL ran)
 #   any other [bot]                fallback: state == APPROVED only
@@ -102,8 +102,9 @@ claude_is_approved() {
 }
 
 # Adapter: Copilot reviewer. Approval requires Copilot's latest submitted
-# review to be after the current head commit and to have 0 inline comments on
-# that commit. Inference, not a documented signal.
+# review to have been submitted against the current head SHA
+# (review.commit_id == head.sha) and to have 0 inline comments on that commit.
+# Inference, not a documented signal.
 copilot_is_approved() {
   local head_sha latest_review review_sha inline_count
   head_sha="$(gh api "repos/$owner_repo/pulls/$PR" --jq '.head.sha')"

@@ -76,7 +76,7 @@ Different repos have different reviewer mixes. **Critical empirical finding: nei
 | Reviewer | Trigger | Approval signal (the real one) | Re-trigger via |
 |---|---|---|---|
 | `claude[bot]` (anthropics/claude-code-action) | `pull_request: opened` reliably; `synchronize` UNRELIABLY — **explicit `@claude` mention is the only reliable trigger after the initial review**. | **None reliable** — Claude is documented as unable to formally approve. Soft heuristic: latest top-level comment lacks blocker keywords (`blocker`, `must fix`, `critical`). **CROSS-CHECK the soft-heuristic timestamp against the latest commit** — a stale review can falsely read as "approved". | **Always post `@claude` after every push.** Do NOT rely on the `synchronize` event to re-fire the workflow. |
-| `copilot-pull-request-reviewer[bot]` | `pull_request: opened` (when enabled in repo settings) | `COMMENTED` review with **0 inline review-comments** by Copilot | Re-request review via REST `pulls/{n}/requested_reviewers` |
+| `copilot-pull-request-reviewer[bot]` | `pull_request: opened` (when enabled in repo settings) | `COMMENTED` review with **0 inline review-comments** by Copilot, and the review was submitted against the current head SHA | Re-request review via REST `pulls/{n}/requested_reviewers` |
 | `github-advanced-security[bot]` (CodeQL) | Push to PR branch | Check-run conclusion `success` (not a review at all) | Push |
 | Any other `*[bot]` | Repo-specific | Fallback: formal `state == APPROVED` only | Repo-specific |
 | Human reviewers | Manual | Formal `state == APPROVED` | Cannot be auto-retriggered — surface to user when waiting |
