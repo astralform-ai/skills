@@ -105,14 +105,12 @@ claude_is_approved() {
 # review to be after the current head commit and to have 0 inline comments on
 # that commit. Inference, not a documented signal.
 copilot_is_approved() {
-  local head_sha head_date latest_review review_date inline_count
+  local head_sha latest_review review_sha inline_count
   head_sha="$(gh api "repos/$owner_repo/pulls/$PR" --jq '.head.sha')"
-  head_date="$(gh pr view "$PR" --json commits --jq '.commits[-1].committedDate')"
-  [ -z "$head_date" ] && return 1
   latest_review="$(gh api "repos/$owner_repo/pulls/$PR/reviews" --paginate --slurp \
     | jq '[.[][] | select(.user.login == "copilot-pull-request-reviewer[bot]")] | sort_by(.submitted_at) | last')"
-  review_date="$(echo "$latest_review" | jq -r '.submitted_at // ""')"
-  if [ -z "$review_date" ] || [ "$(echo "$latest_review" | jq --arg date "$head_date" '(.submitted_at // "") <= $date')" = "true" ]; then
+  review_sha="$(echo "$latest_review" | jq -r '.commit_id // ""')"
+  if [ -z "$review_sha" ] || [ "$review_sha" != "$head_sha" ]; then
     return 1
   fi
   inline_count="$(gh api "repos/$owner_repo/pulls/$PR/comments" --paginate --slurp \
