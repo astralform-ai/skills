@@ -309,6 +309,60 @@
         "sandbox"
       ],
       "featured": false
+    },
+    {
+      "id": "auto-issue",
+      "name": "auto-issue",
+      "display_name": "Auto Issue",
+      "description": "Drive a GitHub issue from open to closed: triage, apply the minimal fix in a worktree, open a PR, and drive it to merge.",
+      "version": "0.1.0",
+      "author": "atom2ueki",
+      "type": "internal",
+      "path": "skills/auto-issue",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "automation",
+        "github",
+        "issues",
+        "pr"
+      ],
+      "featured": true
+    },
+    {
+      "id": "auto-pr",
+      "name": "auto-pr",
+      "display_name": "Auto PR",
+      "description": "Drive an open GitHub PR to squash-merge: validate review threads, reply with evidence, fix issues, re-trigger reviewers, and wait for green checks.",
+      "version": "0.4.0",
+      "author": "atom2ueki",
+      "type": "internal",
+      "path": "skills/auto-pr",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "automation",
+        "github",
+        "pr",
+        "review"
+      ],
+      "featured": true
+    },
+    {
+      "id": "auto-fix",
+      "name": "auto-fix",
+      "display_name": "Auto Fix",
+      "description": "Turn a bug report, stack trace, or change request into a proven root cause, a minimal fix, and a merged PR.",
+      "version": "0.1.0",
+      "author": "atom2ueki",
+      "type": "internal",
+      "path": "skills/auto-fix",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "automation",
+        "github",
+        "fix",
+        "pr"
+      ],
+      "featured": true
     }
   ]
 }
