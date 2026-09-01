@@ -9,7 +9,8 @@
 #   claude[bot]                    no reliable structural signal; layered
 #                                  heuristic — positive-signal-first, then
 #                                  blocker scan with negation-context stripping
-#   copilot-pull-request-reviewer  COMMENTED review with 0 inline comments
+#   copilot-pull-request-reviewer  COMMENTED review with 0 inline comments on
+#                                  the PR's current head SHA
 #   github-advanced-security[bot]  ALL CodeQL check-runs on head commit are
 #                                  conclusion=success (or no CodeQL ran)
 #   any other [bot]                fallback: state == APPROVED only
