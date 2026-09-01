@@ -17,9 +17,10 @@
 #   ]
 # }
 #
-# `required: true` is set if the check name appears in branch protection's required list.
-# If branch protection cannot be read (no admin), all checks default to required=null
-# and `all_required_passed` falls back to "all checks passed".
+# `required` is true iff the check name appears in branch protection's required list.
+# If branch protection cannot be read (no admin), `required` is false and
+# `all_required_passed` falls back to "all checks passed". A not-yet-registered
+# check — including an empty rollup — reads as not-passed, never as passed.
 
 set -euo pipefail
 

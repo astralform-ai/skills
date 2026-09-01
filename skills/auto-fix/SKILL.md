@@ -1,8 +1,6 @@
 ---
 name: auto-fix
 description: Full-auto loop that takes a problem statement — a bug report, stack trace, failing behavior, screenshot, or change request — all the way to merged without bouncing back to the user. Establishes a proven root cause (defects) or an actionable spec (requests), applies the minimal fix in an isolated worktree, opens a PR, drives it to merge via the auto-pr loop, then runs the close-session sweep. Use whenever the user describes something broken or wanted and expects it handled end to end, e.g. "/auto-fix the sidebar flickers on resize", "/auto-fix this stack trace", "fix this and ship it", "take this bug all the way to merged". Project-agnostic. Do NOT trigger for diagnosis-only asks ("why does this crash?"), plain edits the user wants to review themselves, an existing GitHub issue number (that is /auto-issue), or an already-open PR (that is /auto-pr).
-metadata:
-  author: atom2ueki
 display_name: Auto Fix
 version: "0.1.0"
 author: atom2ueki

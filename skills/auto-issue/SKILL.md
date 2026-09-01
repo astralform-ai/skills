@@ -1,8 +1,6 @@
 ---
 name: auto-issue
 description: Full-auto loop that takes a GitHub issue from "open" to "closed" without bouncing back to the user. Verifies issue-author trust, triages the resolution path (code change / external system / config / won't-fix / stale / needs-info), executes the right path — for code changes it creates a worktree, applies the minimal fix, opens a PR, then delegates to the auto-pr loop to drive reviewers, push fixes, and squash-merge. Use whenever the user wants to take an issue all the way to closed, e.g. "/auto-issue 42", "auto-resolve issue #42", "fix issue 42 end to end", "take issue 42 through to merge", "close out issue 42 automatically". Project-agnostic — detects the repo's build/test conventions. Do NOT trigger for issue exploration ("what is issue 42 about", "summarize issue 42") or for triaging issues without acting on them — only for the full resolution cycle.
-metadata:
-  author: atom2ueki
 display_name: Auto Issue
 version: "0.1.0"
 author: atom2ueki
