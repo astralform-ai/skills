@@ -39,18 +39,27 @@ fi
 echo "$pr_data" | jq --argjson required "$required_checks_json" '
   ($required | length > 0) as $have_required |
   [.statusCheckRollup[] |
+    (.name // .context) as $name |
+    (.status // .state // "completed") as $status |
+    (.conclusion // .state // null) as $conclusion |
     {
-      name: (.name // .context),
-      status: (.status // "completed"),
-      conclusion: (.conclusion // .state // null),
-      required: ($have_required and (any($required[]; . == (.name // .context))))
+      name: $name,
+      status: $status,
+      conclusion: $conclusion,
+      required: ($have_required and (any($required[]; . == $name)))
     }
   ] as $checks |
+  ($checks | length) as $check_count |
+  ($checks | map(select(.required)) | map(.name)) as $present_required |
   {
     pr_number: ('"$PR"' | tonumber),
     have_required_list: $have_required,
     all_required_passed: (
-      if $have_required then
+      if $check_count == 0 then
+        false
+      elif $have_required then
+        (($required - $present_required) | length) == 0
+        and
         ($checks | map(select(.required)) | all(.conclusion == "success" or .conclusion == "SUCCESS" or .conclusion == "neutral" or .conclusion == "skipped"))
       else
         ($checks | all(.conclusion == "success" or .conclusion == "SUCCESS" or .conclusion == "neutral" or .conclusion == "skipped"))

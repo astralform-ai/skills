@@ -77,20 +77,24 @@ claude_is_approved() {
     | jq -r '[.[][]] | sort_by(.created_at) | map(select(.user.login == "claude[bot]")) | last | .body // ""')"
   [ -z "$body" ] && return 1
 
-  # Tier 1: explicit positive signals — these win.
-  if echo "$body" | grep -qiE '\b(ready to merge|approve[sd]?|approving|lgtm|no major issues|no issues|all findings (are )?resolved|looks good( to merge)?|no remaining issues)\b'; then
-    return 0
-  fi
-
-  # Tier 2: strip negation contexts before checking blocker keywords.
+  # Strip negation contexts FIRST so "not ready to merge", "unable to approve",
+  # and "cannot approve" cannot match a later positive-signal scan.
   # Patterns to remove: "not a blocker", "no blocker", "non-blocker", "not blocking",
-  # "non-blocking", and the same for blockers/critical/must fix.
+  # "non-blocking", "not ready to merge", "unable to approve", and the same for
+  # blockers/critical/must fix.
   # Use perl (not sed): BSD sed on macOS doesn't support `\b` word boundaries.
   # Perl 5 is on macOS by default and standard on Linux GitHub Actions runners.
   local cleaned
-  cleaned="$(echo "$body" | perl -pe 's/\b(not a |not |no |non-?)(blocker|blockers|blocking|critical|must[ -]?fix)\b/_/gi')"
+  cleaned="$(echo "$body" | perl -pe 's/\b(not a |not |no |non-?|unable to |cannot )(blocker|blockers|blocking|critical|must[ -]?fix|ready to merge|approve[sd]?|approving|no major issues|no issues|all findings (are )?resolved|looks good( to merge)?|no remaining issues)\b/_/gi')"
 
-  # Tier 3: blocker keywords on the cleaned body.
+  # Tier 1: explicit positive signals on the cleaned body. Keep the bare
+  # approve alternative anchored so "I approve" matches while "unable to
+  # approve" was already neutralized above.
+  if echo "$cleaned" | grep -qiE '\b(ready to merge|lgtm|no major issues|no issues|all findings (are )?resolved|looks good( to merge)?|no remaining issues)\b|(^|[^a-z])(approved|I approve)\b'; then
+    return 0
+  fi
+
+  # Tier 2: blocker keywords on the cleaned body.
   if echo "$cleaned" | grep -qiE '\b(blocker|blockers|must fix|critical|fix before merge|do not merge|request(ing|s) changes)\b'; then
     return 1
   fi
@@ -102,9 +106,10 @@ claude_is_approved() {
 # Adapter: Copilot reviewer. Approval ≈ COMMENTED review with 0 inline
 # review-comments by Copilot. Inference, not a documented signal.
 copilot_is_approved() {
-  local inline_count
-  inline_count="$(gh api "repos/$owner_repo/pulls/$PR/comments" --paginate \
-    --jq '[.[] | select(.user.login == "copilot-pull-request-reviewer[bot]")] | length')"
+  local head_sha inline_count
+  head_sha="$(gh api "repos/$owner_repo/pulls/$PR" --jq '.head.sha')"
+  inline_count="$(gh api "repos/$owner_repo/pulls/$PR/comments" --paginate --slurp \
+    | jq --arg sha "$head_sha" '[.[][] | select(.user.login == "copilot-pull-request-reviewer[bot]" and .commit_id == $sha)] | length')"
   [ "$inline_count" = "0" ] && return 0
   return 1
 }
@@ -202,7 +207,8 @@ done | jq -s --arg pr "$PR" --arg pr_author "$pr_author" '
     pr_author: $pr_author,
     reviewers: $reviewers,
     all_bots_approved: (
-      ($bot_entries | length) > 0 and
+      ($bot_entries | length) == 0
+      or
       ($bot_entries | all(.value.is_approved == true))
     ),
     any_changes_requested: (

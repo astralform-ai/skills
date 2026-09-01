@@ -3,7 +3,9 @@ name: auto-pr
 description: Full-auto loop that drives an open GitHub PR to merge. Detects reviewers (Claude, Copilot, CodeQL, etc.), validates each unresolved review thread against the actual code, applies fixes or replies with evidence, resolves threads, re-triggers bots from the user account when a re-review is needed, waits for required checks, and squash-merges when everything is green. Use whenever the user wants to take an open PR all the way to merged without bouncing back, e.g. "/auto-pr 123", "drive PR #123 to merge", "finish PR 123", "auto-resolve PR 123", "close out PR #123", "merge 123 when green". Project-agnostic — detects build/test commands from the repo. Do NOT trigger for PR exploration ("summarize PR 123", "what does PR 123 do") — only for the full drive-to-merge cycle.
 metadata:
   author: atom2ueki
-  version: "0.4"
+display_name: Auto PR
+version: "0.4.0"
+author: atom2ueki
 ---
 
 # Auto PR: drive an open PR to merge
@@ -314,7 +316,7 @@ Branch on the wakeup state:
 
 Pre-merge gate (all must hold):
 
-- `all_bots_approved == true` from `detect-reviewers.sh`. Every present bot has a latest review state of `APPROVED`. Bots in `COMMENTED` state need a final sign-off ping (step 10) — don't merge while `bots_pending_signoff` is non-empty.
+- `all_bots_approved == true` from `detect-reviewers.sh`. Every present bot's `is_approved` is true per its adapter. Bots in `COMMENTED` state need a final sign-off ping (step 10) — don't merge while `bots_pending_signoff` is non-empty.
 - `any_changes_requested == false`. No reviewer (bot or human) is actively blocking with a `CHANGES_REQUESTED` review.
 - `mergeable == "MERGEABLE"` AND `mergeStateStatus == "CLEAN"`. This accounts for branch protection: if the repo requires N approvals from CODEOWNERS or specific teams, `BLOCKED` will appear here even when threads are clean.
 - All review threads resolved (or explicitly deferred and noted for user).

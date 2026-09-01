@@ -3,7 +3,9 @@ name: auto-fix
 description: Full-auto loop that takes a problem statement — a bug report, stack trace, failing behavior, screenshot, or change request — all the way to merged without bouncing back to the user. Establishes a proven root cause (defects) or an actionable spec (requests), applies the minimal fix in an isolated worktree, opens a PR, drives it to merge via the auto-pr loop, then runs the close-session sweep. Use whenever the user describes something broken or wanted and expects it handled end to end, e.g. "/auto-fix the sidebar flickers on resize", "/auto-fix this stack trace", "fix this and ship it", "take this bug all the way to merged". Project-agnostic. Do NOT trigger for diagnosis-only asks ("why does this crash?"), plain edits the user wants to review themselves, an existing GitHub issue number (that is /auto-issue), or an already-open PR (that is /auto-pr).
 metadata:
   author: atom2ueki
-  version: "0.1"
+display_name: Auto Fix
+version: "0.1.0"
+author: atom2ueki
 ---
 
 # Auto Fix: from problem statement to merged fix
@@ -227,6 +229,10 @@ jq -r '.findings[] | "[\(.level)] \(.code): \(.message)"' /tmp/auto-fix-sweep.js
 ```
 
 Then run `close-session`'s beats — `activate_skill(name="close-session")` — with one amendment: its Beat 4 requires a yes for commit/push/PR/issue-create, and inside an `auto-fix` run those are already pre-authorized *for this session's own work* (see "When this skill drives"). Every other approval it asks for still stands.
+
+If `close-session` is not installed or cannot be loaded, skip the sweep rather
+than inventing a local path, and say in the final report that the sweep was
+unavailable.
 
 Beat 1 (verify delivery) is not a formality here. The merged PR proves the fix landed; it does not prove the user's original statement is satisfied. Re-read what they actually asked for and check it off against evidence.
 
