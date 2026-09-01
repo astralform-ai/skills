@@ -11,7 +11,8 @@
 #                                  blocker scan with negation-context stripping
 #   copilot-pull-request-reviewer  latest review is anchored to the PR's current
 #                                  head SHA (review.commit_id == head.sha) and
-#                                  has 0 inline comments on that commit
+#                                  Copilot has 0 inline comments anchored to
+#                                  that commit
 #   github-advanced-security[bot]  ALL CodeQL check-runs on head commit are
 #                                  conclusion=success (or no CodeQL ran)
 #   any other [bot]                fallback: state == APPROVED only
