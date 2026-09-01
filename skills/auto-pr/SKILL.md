@@ -83,7 +83,7 @@ Different repos have different reviewer mixes. **Critical empirical finding: nei
 
 `{baseDir}/scripts/detect-reviewers.sh <PR#>` returns a JSON profile with `is_approved` per reviewer (computed by the right adapter) plus aggregate fields:
 
-- `all_bots_approved` — AND of every bot's `is_approved`. This is the load-bearing merge gate. It is *false* when any bot still has open suggestions, including bots that haven't been re-pinged after the last code change.
+- `all_bots_approved` — at least one non-author review has been seen AND every bot's `is_approved` is true. This is the load-bearing merge gate. It is *false* before any review exists, and when any bot still has open suggestions, including bots that haven't been re-pinged after the last code change.
 - `any_changes_requested` — true if any reviewer (bot or human) has a `CHANGES_REQUESTED` review.
 - `bots_pending_signoff` — list of bot logins whose adapter says not-approved. These are the ones to re-trigger or re-resolve.
 - `pr_author` — the PR author. Their own comments on the PR are filtered out of "humans" automatically.
@@ -145,7 +145,7 @@ Returns a JSON profile like:
 }
 ```
 
-This profile is the **stop condition** for the loop: when `all_bots_approved == true` AND `humans_pending == false` AND all required checks pass, you can merge.
+This profile is the **stop condition** for the loop: when `reviews_seen == true`, `all_bots_approved == true`, `humans_pending == false`, and all required checks pass, you can merge.
 
 ### 5. List unresolved review threads
 
@@ -314,11 +314,15 @@ Branch on the wakeup state:
 
 Pre-merge gate (all must hold):
 
-- `all_bots_approved == true` from `detect-reviewers.sh`. Every present bot's `is_approved` is true per its adapter. Bots in `COMMENTED` state need a final sign-off ping (step 10) — don't merge while `bots_pending_signoff` is non-empty.
+- `all_bots_approved == true` from `detect-reviewers.sh` — at least one non-author review has been seen and every present bot's `is_approved` is true per its adapter. Bots in `COMMENTED` state need a final sign-off ping (step 10) — don't merge while `bots_pending_signoff` is non-empty.
 - `any_changes_requested == false`. No reviewer (bot or human) is actively blocking with a `CHANGES_REQUESTED` review.
 - `mergeable == "MERGEABLE"` AND `mergeStateStatus == "CLEAN"`. This accounts for branch protection: if the repo requires N approvals from CODEOWNERS or specific teams, `BLOCKED` will appear here even when threads are clean.
 - All review threads resolved (or explicitly deferred and noted for user).
 - `statusCheckRollup` shows all required checks `SUCCESS` or `SKIPPED`. SKIPPED is fine — it usually means a bot-triggered placeholder didn't apply this run; SUCCESS is what counts on the actual CI workflow. Only `FAILURE` / `TIMED_OUT` / `CANCELLED` block the merge.
+
+If a repo has no reviewers at all (no bots, no humans), `reviews_seen` stays
+false and this gate intentionally never passes; surface that to the user rather
+than treating it as a stuck check.
 
 > **The PR author exception:** the PR author commenting on their own PR is filtered out of "humans" by `detect-reviewers.sh`. Their replies are not reviewer reviews and don't block.
 

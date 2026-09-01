@@ -10,7 +10,8 @@
 #                                  heuristic — positive-signal-first, then
 #                                  blocker scan with negation-context stripping
 #   copilot-pull-request-reviewer  COMMENTED review with 0 inline comments on
-#                                  the PR's current head SHA
+#                                  the PR's current head SHA and a latest
+#                                  review that postdates the head commit
 #   github-advanced-security[bot]  ALL CodeQL check-runs on head commit are
 #                                  conclusion=success (or no CodeQL ran)
 #   any other [bot]                fallback: state == APPROVED only
@@ -31,6 +32,7 @@
 #     }
 #   },
 #   "all_bots_approved": bool,
+#   "reviews_seen": bool,
 #   "any_changes_requested": bool,
 #   "bots_pending_signoff": [<login>...],   // bots in COMMENTED state with no approval signal yet
 #   "humans": [<login>...],
@@ -86,7 +88,7 @@ claude_is_approved() {
   # Tier 1: explicit positive signals on the cleaned body. Keep the bare
   # approve alternative anchored so "I approve" matches while "unable to
   # approve" was already neutralized above.
-  if echo "$cleaned" | grep -qiE '\b(ready to merge|lgtm|no major issues|no issues|all findings (are )?resolved|looks good( to merge)?|no remaining issues|verdict:\s*clean|no blocking findings)\b|(^|[^a-z])(approved|I approve)\b'; then
+  if echo "$cleaned" | grep -qiE '\b(ready to merge|lgtm|no major issues|no issues|all findings (are )?resolved|looks good( to merge)?|no remaining issues|verdict:[[:space:]]*clean|no blocking findings)\b|(^|[^a-z])(approved|I approve)\b'; then
     return 0
   fi
 
@@ -105,7 +107,8 @@ claude_is_approved() {
 copilot_is_approved() {
   local head_sha head_date latest_review review_date inline_count
   head_sha="$(gh api "repos/$owner_repo/pulls/$PR" --jq '.head.sha')"
-  head_date="$(gh api "repos/$owner_repo/commits/$head_sha" --jq '.commit.committer.date')"
+  head_date="$(gh pr view "$PR" --json commits --jq '.commits[-1].committedDate')"
+  [ -z "$head_date" ] && return 1
   latest_review="$(gh api "repos/$owner_repo/pulls/$PR/reviews" --paginate --slurp \
     | jq '[.[][] | select(.user.login == "copilot-pull-request-reviewer[bot]")] | sort_by(.submitted_at) | last')"
   review_date="$(echo "$latest_review" | jq -r '.submitted_at // ""')"
