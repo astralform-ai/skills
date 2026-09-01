@@ -104,8 +104,8 @@ claude_is_approved() {
 
 # Adapter: Copilot reviewer. Approval requires Copilot's latest submitted
 # review to have been submitted against the current head SHA
-# (review.commit_id == head.sha) and to have 0 inline comments on that commit.
-# Inference, not a documented signal.
+# (review.commit_id == head.sha), and Copilot to have 0 inline comments
+# anchored to that commit. Inference, not a documented signal.
 copilot_is_approved() {
   local head_sha latest_review review_sha inline_count
   head_sha="$(gh api "repos/$owner_repo/pulls/$PR" --jq '.head.sha')"
