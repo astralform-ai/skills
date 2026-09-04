@@ -51,8 +51,7 @@ mkdir -p "$GH_CONFIG_DIR"
 gh auth setup-git >/dev/null 2>&1 || die "gh auth setup-git failed — the run's token is not usable for git"
 
 NAME="${REPO##*/}"
-# Relative to the working directory the skill's scripts were staged in, so the
-# clone sits beside them rather than in whatever $HOME happens to be.
+# Relative to the sandbox's working directory, not $HOME — see note 3 above.
 WORK_ROOT="${AF_WORK_ROOT:-$PWD/work}"
 DEST="$WORK_ROOT/$NAME"
 mkdir -p "$WORK_ROOT"

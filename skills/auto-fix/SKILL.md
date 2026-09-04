@@ -122,6 +122,12 @@ Read the `git status --short` line first: `gate.sh` ran an install in this tree,
 with no lockfile now has a generated one. Unstage anything the fix did not intend before
 committing.
 
+`origin/HEAD` is the default branch's tip **today**, not this branch's fork point — a
+`--depth 1` clone has no merge base to use instead. On a resumed task whose default branch
+moved meanwhile, that movement is counted too and the number reads high. It errs toward
+stopping for a human, which is the right direction to err, but say so rather than splitting
+a PR that was never oversized.
+
 Above roughly **500 changed lines**, stop and ask — review stops converging past that.
 
 Push and open the PR (the work is already staged by the size check above):

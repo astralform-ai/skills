@@ -169,6 +169,16 @@ so a branch you resumed counts what it already carries too:
 r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && git diff --cached --stat origin/HEAD", timeout=60)
 ```
 
+Read the `git status --short` output first: `gate.sh` ran an install in this tree, so a
+repo with no lockfile now has a generated one, and one whose `.gitignore` misses
+`node_modules/` has that too. Unstage anything the fix did not intend before committing.
+
+`origin/HEAD` is the default branch's tip **today**, not this branch's fork point — a
+`--depth 1` clone has no merge base to use instead. On a resumed task whose default branch
+moved meanwhile, that movement is counted too and the number reads high. It errs toward
+stopping for a human, which is the right direction to err, but say so rather than splitting
+a PR that was never oversized.
+
 Above roughly **500 changed lines**, stop and ask. Review quality falls off a cliff past
 that: the reviewer re-reads the whole diff on every push, so findings scale with size and
 the loop stops converging. Split into stacked PRs, or narrow the scope.

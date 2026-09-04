@@ -106,27 +106,27 @@ if [ -f package.json ]; then
   fi
   # Only scripts the repo actually defines; a missing one is not a failure.
   has_script() { node -e "process.exit(require('./package.json').scripts?.['$1']?0:1)" 2>/dev/null; }
-  has_script lint && run_check "lint" npm run lint
-  has_script typecheck && run_check "typecheck" npm run typecheck
-  has_script test && run_check "test" npm test
+  if has_script lint; then run_check "lint" npm run lint; fi
+  if has_script typecheck; then run_check "typecheck" npm run typecheck; fi
+  if has_script test; then run_check "test" npm test; fi
 fi
 
 if [ -f pyproject.toml ]; then
   if command -v uv >/dev/null 2>&1; then
     run_setup "install" uv sync
-    grep -q "ruff" pyproject.toml && run_check "lint" uv run ruff check .
+    if grep -q "ruff" pyproject.toml; then run_check "lint" uv run ruff check .; fi
     run_check "test" uv run pytest -q
   else
     # No uv means nothing was installed, so only tools already on PATH can run.
     # If neither is present, CHECKS stays 0 and the exit below says so rather
     # than reporting a gate that never executed as green.
-    command -v ruff >/dev/null 2>&1 && run_check "lint" ruff check .
-    command -v pytest >/dev/null 2>&1 && run_check "test" pytest -q
+    if command -v ruff >/dev/null 2>&1; then run_check "lint" ruff check .; fi
+    if command -v pytest >/dev/null 2>&1; then run_check "test" pytest -q; fi
   fi
 fi
 
 if [ "$CHECKS" -eq 0 ] && [ -f Makefile ]; then
-  grep -qE "^test:" Makefile && run_check "test" make test
+  if grep -qE "^test:" Makefile; then run_check "test" make test; fi
 fi
 
 if [ "$CHECKS" -eq 0 ]; then
