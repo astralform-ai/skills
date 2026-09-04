@@ -72,6 +72,10 @@ blocked_host() {
 # condition: `$?` after an if-without-else is the status of the compound (zero
 # when no branch ran), not of the command — reading it afterwards silently loses
 # timeout's 124 and turns "too slow" into "your tests are red".
+# EMPTY_OK: an exit code from this tool that means "there was nothing to run",
+# not "what ran failed". pytest returns 5 when it collects no tests, and calling
+# that red is the same false verdict as calling a missing toolchain red — found
+# by running this script in a real capsule against a project with no tests.
 _exec() {
   local label="$1"; shift
   local code=0
@@ -92,6 +96,10 @@ _exec() {
     echo "TIMEOUT: $label exceeded ${BUDGET}s — run it with capsule.proc.run_background and poll"
     exit 1
   fi
+  if [ -n "${EMPTY_OK:-}" ] && [ "$code" -eq "$EMPTY_OK" ]; then
+    SKIPPED="${SKIPPED:+$SKIPPED; }$label found nothing to run"
+    return 1
+  fi
   echo "FAIL: $label"
   exit 1
 }
@@ -100,7 +108,7 @@ _exec() {
 run_setup() { _exec "$@"; }
 
 # A real check. Only these make PASS possible.
-run_check() { _exec "$@"; CHECKS=$((CHECKS + 1)); }
+run_check() { if _exec "$@"; then CHECKS=$((CHECKS + 1)); fi; }
 
 if [ -f package.json ]; then
   # A missing toolchain is not a red gate: without the manager this repo's
@@ -138,7 +146,7 @@ if [ -f package.json ]; then
       yarn) # Yarn 2+ rejects --frozen-lockfile outright; its spelling is
             # --immutable. Guessing wrong hands back exactly the wrong-verdict
             # this block exists to prevent.
-            if yarn --version 2>/dev/null | grep -q '^1\.'; then
+            if timeout 30 yarn --version 2>/dev/null | grep -q '^1\.'; then
               run_setup "install" yarn install --frozen-lockfile
             else
               run_setup "install" yarn install --immutable
@@ -159,13 +167,17 @@ if [ -f pyproject.toml ]; then
   if command -v uv >/dev/null 2>&1; then
     run_setup "install" uv sync
     if grep -q "ruff" pyproject.toml; then run_check "lint" uv run ruff check .; fi
-    run_check "test" uv run pytest -q
+    EMPTY_OK=5 run_check "test" uv run pytest -q
   else
     # No uv means nothing was installed, so only tools already on PATH can run.
-    # If neither is present, CHECKS stays 0 and the exit below says so rather
-    # than reporting a gate that never executed as green.
+    # When neither is there the skip is recorded, so the verdict blames the
+    # sandbox rather than the repository — the same rule the JS block follows,
+    # and by probe this is the commoner path on the real image.
     if command -v ruff >/dev/null 2>&1; then run_check "lint" ruff check .; fi
-    if command -v pytest >/dev/null 2>&1; then run_check "test" pytest -q; fi
+    if command -v pytest >/dev/null 2>&1; then EMPTY_OK=5 run_check "test" pytest -q; fi
+    if ! command -v ruff >/dev/null 2>&1 && ! command -v pytest >/dev/null 2>&1; then
+      SKIPPED="${SKIPPED:+$SKIPPED; }pyproject.toml found but neither uv, ruff nor pytest is installed in this sandbox"
+    fi
   fi
 fi
 
@@ -182,4 +194,11 @@ if [ "$CHECKS" -eq 0 ]; then
   exit 2
 fi
 
-echo "PASS: the repository's own checks are green ($CHECKS ran)"
+if [ -n "$SKIPPED" ]; then
+  # Partial, and said so: a run that skipped a whole stack is not the same
+  # evidence as one that ran everything, and the caller decides what to do with
+  # the difference.
+  echo "PASS (PARTIAL): $CHECKS check(s) green, but skipped — $SKIPPED"
+else
+  echo "PASS: the repository's own checks are green ($CHECKS ran)"
+fi
