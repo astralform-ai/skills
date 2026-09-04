@@ -166,8 +166,8 @@ Stop there and say which host to allow. Do not open a PR whose tests never ran.
 
 Check the diff before opening anything. Stage first — `git diff` alone does not see
 untracked files, and on a skill whose whole discipline is "add a failing test", the new
-test file is exactly the one it would miss. It prints two stats, because a branch you
-resumed carries work this run did not do:
+test file is exactly the one it would miss. The command below prints two stats, because a
+branch you resumed carries work this run did not do:
 
 ```python
 r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && echo THIS-SESSION && git diff --cached --stat && echo WHOLE-BRANCH && git diff --cached --stat origin/HEAD", timeout=60)

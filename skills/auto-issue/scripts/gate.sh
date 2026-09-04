@@ -49,6 +49,9 @@ trap 'rm -f "$OUT"' EXIT
 
 # How many real checks executed. Incremented by run_check only, never by setup.
 CHECKS=0
+# Why a block was skipped, if one was — carried to the final verdict so a
+# sandbox limitation is never reported as a repository with no gate.
+SKIPPED=""
 
 egress_wall() {
   grep -qiE "could not resolve host|temporary failure in name resolution|getaddrinfo|network is unreachable|connection refused|EAI_AGAIN|ETIMEDOUT|tunneling socket could not be established" "$1"
@@ -108,20 +111,38 @@ if [ -f package.json ]; then
   # package.json and a pyproject.toml — exiting here would silently deny the
   # Python gate its turn.
   JS_MANAGER=""
+  JS_SKIP_REASON=""
   if [ -f pnpm-lock.yaml ]; then
-    command -v pnpm >/dev/null 2>&1 && JS_MANAGER="pnpm"
+    if command -v pnpm >/dev/null 2>&1; then JS_MANAGER="pnpm"
+    else JS_SKIP_REASON="pnpm-lock.yaml found but pnpm is not installed in this sandbox"
+    fi
   elif [ -f yarn.lock ]; then
-    command -v yarn >/dev/null 2>&1 && JS_MANAGER="yarn"
+    if command -v yarn >/dev/null 2>&1; then JS_MANAGER="yarn"
+    else JS_SKIP_REASON="yarn.lock found but yarn is not installed in this sandbox"
+    fi
   elif command -v npm >/dev/null 2>&1; then
     JS_MANAGER="npm"
+  else
+    JS_SKIP_REASON="package.json found but npm is not installed in this sandbox"
   fi
 
   if [ -z "$JS_MANAGER" ]; then
-    echo "gate.sh: package.json found but its package manager is not installed here — skipping the JS checks" >&2
+    # Kept for the final verdict: the caller must be told this was the SANDBOX's
+    # limitation, not the repository's. Reporting "no lint or test was found"
+    # here would blame the repo for a tool the image lacks.
+    SKIPPED="$JS_SKIP_REASON"
+    echo "gate.sh: $JS_SKIP_REASON — skipping the JS checks" >&2
   else
     case "$JS_MANAGER" in
       pnpm) run_setup "install" pnpm install --frozen-lockfile ;;
-      yarn) run_setup "install" yarn install --frozen-lockfile ;;
+      yarn) # Yarn 2+ rejects --frozen-lockfile outright; its spelling is
+            # --immutable. Guessing wrong hands back exactly the wrong-verdict
+            # this block exists to prevent.
+            if yarn --version 2>/dev/null | grep -q '^1\.'; then
+              run_setup "install" yarn install --frozen-lockfile
+            else
+              run_setup "install" yarn install --immutable
+            fi ;;
       npm)  if [ -f package-lock.json ]; then run_setup "install" npm ci
             else run_setup "install" npm install
             fi ;;
@@ -153,7 +174,11 @@ if [ "$CHECKS" -eq 0 ] && [ -f Makefile ]; then
 fi
 
 if [ "$CHECKS" -eq 0 ]; then
-  echo "NO GATE: nothing to run — no lint, typecheck or test was found to execute"
+  if [ -n "$SKIPPED" ]; then
+    echo "NO GATE: $SKIPPED"
+  else
+    echo "NO GATE: nothing to run — no lint, typecheck or test was found to execute"
+  fi
   exit 2
 fi
 
