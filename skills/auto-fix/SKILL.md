@@ -115,18 +115,21 @@ name the host. Do not open a PR whose tests never ran.
 ## Step 6 — Size gate, then open the PR
 
 ```python
-r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && git diff --cached --stat origin/HEAD", timeout=60)
+r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && echo THIS-SESSION && git diff --cached --stat && echo WHOLE-BRANCH && git diff --cached --stat origin/HEAD", timeout=60)
 ```
 
-Read the `git status --short` line first: `gate.sh` ran an install in this tree, so a repo
-with no lockfile now has a generated one. Unstage anything the fix did not intend before
-committing.
+Read the `git status --short` output first: `gate.sh` ran an install in this tree, so a
+repo with no lockfile now has a generated one, and one whose `.gitignore` misses
+`node_modules/` has that too — a lockfile is one file, an unignored `node_modules/` is
+thousands, and `git add -A` takes them all. Unstage anything the fix did not intend.
 
 `origin/HEAD` is the default branch's tip **today**, not this branch's fork point — a
 `--depth 1` clone has no merge base to use instead. On a resumed task whose default branch
 moved meanwhile, that movement is counted too and the number reads high. It errs toward
-stopping for a human, which is the right direction to err, but say so rather than splitting
-a PR that was never oversized.
+stopping for a human, which is the right direction to err — and the command prints both
+numbers so you can tell the two apart: `THIS-SESSION` is what this run changed on top of
+the branch, `WHOLE-BRANCH` is what the PR contains. When they diverge sharply on a resumed
+task, say so rather than splitting a PR that was never oversized.
 
 Above roughly **500 changed lines**, stop and ask — review stops converging past that.
 

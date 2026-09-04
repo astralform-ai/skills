@@ -99,9 +99,16 @@ run_setup() { _exec "$@"; }
 run_check() { _exec "$@"; CHECKS=$((CHECKS + 1)); }
 
 if [ -f package.json ]; then
+  # A missing toolchain is not a red gate. Without npm this would run
+  # `timeout 240 npm ci`, get 127, and print FAIL: install — telling the caller
+  # the repository is broken when the sandbox simply cannot build it.
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "NO GATE: package.json found but npm is not installed in this sandbox"
+    exit 2
+  fi
   if [ -f package-lock.json ]; then run_setup "install" npm ci
-  elif [ -f pnpm-lock.yaml ]; then run_setup "install" pnpm install --frozen-lockfile
-  elif [ -f yarn.lock ]; then run_setup "install" yarn install --frozen-lockfile
+  elif [ -f pnpm-lock.yaml ] && command -v pnpm >/dev/null 2>&1; then run_setup "install" pnpm install --frozen-lockfile
+  elif [ -f yarn.lock ] && command -v yarn >/dev/null 2>&1; then run_setup "install" yarn install --frozen-lockfile
   else run_setup "install" npm install
   fi
   # Only scripts the repo actually defines; a missing one is not a failure.
