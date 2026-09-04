@@ -46,10 +46,11 @@ Four rules the sandbox imposes:
 - **Always pass `timeout`.** A cell is capped at 300 seconds; a call with no timeout dies
   with the cell and you lose its output. Anything near 240 seconds goes through
   `capsule.proc.run_background` and a poll.
-- **Clone under `$HOME/work/`.** Not `/tmp` (it is RAM) and not `/workspace` (a network
+- **Clone under `./work/`.** Not `/tmp` (it is RAM) and not `/workspace` (a network
   mount that is slow and unreliable for git objects).
-- **`jq` is not installed.** Use `gh … --json … --jq '…'`, which has its own JSON engine,
-  or `python3 -c 'import json,sys; …'`. A bare `jq` will fail.
+- **Parse JSON with `gh … --json … --jq '…'` or `python3`.** The E2B code sandbox does
+  carry `jq`, but a Sprites sandbox does not, and `gh`'s own `--jq` works on both — so
+  reaching for bare `jq` is what makes a skill run on one backend and not the other.
 - **Scope:** this skill needs `gh`, which the E2B code sandbox has. On a Sprites sandbox
   `gh` is absent and this skill cannot run.
 
@@ -106,7 +107,21 @@ Closing an issue is `gh issue close <N> --reason "completed"` or `--reason "not 
 with a comment first. If you cannot tell which path an issue is on, ask. One short question
 beats an hour of the wrong work.
 
-## Step 4 — State the acceptance check, and watch it fail
+## Step 4 — Clone
+
+```python
+r = capsule.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/issue-42", timeout=180)
+```
+
+`clone.sh` runs `gh auth setup-git` so git uses the run's token through gh's credential
+helper — no token ever appears in a URL — then shallow-clones into `./work/<repo>`, beside the skill's own staged files,
+sets the bot's commit identity, and creates the branch. It prints `REPO_DIR=` and
+`BRANCH=`; read `REPO_DIR` from stdout and use it for everything below.
+
+Shallow and single-branch is deliberate: the sandbox has roughly 6.9 GB free, and a full
+history plus dependencies can exhaust it.
+
+## Step 5 — State the acceptance check, and watch it fail
 
 Write down, in one line, the runnable thing that is false now and will be true after.
 
@@ -117,34 +132,22 @@ Write down, in one line, the runnable thing that is false now and will be true a
 | Missing behaviour | A test asserting the new behaviour, failing today |
 | Performance | The measured number today, and the threshold that counts as fixed |
 
-**Run it and record that it failed.** A check you never saw fail is a hope, not evidence.
+**Run it in the clone and record that it failed.** A check you never saw fail is a hope,
+not evidence — which is why the clone comes first: there is nothing to run it in before
+that.
 It goes in the PR body verbatim, and it is what makes a reviewer's "this would break"
 answerable with a fact.
-
-## Step 5 — Clone
-
-```python
-r = capsule.proc.exec("./skills/auto-issue/scripts/clone.sh owner/repo af/issue-42", timeout=180)
-```
-
-`clone.sh` runs `gh auth setup-git` so git uses the run's token through gh's credential
-helper — no token ever appears in a URL — then shallow-clones into `$HOME/work/<repo>`,
-sets the bot's commit identity, and creates the branch. It prints `REPO_DIR=` and
-`BRANCH=`; read `REPO_DIR` from stdout and use it for everything below.
-
-Shallow and single-branch is deliberate: the sandbox has roughly 6.9 GB free, and a full
-history plus dependencies can exhaust it.
 
 ## Step 6 — Fix, minimally
 
 - Only what the issue asks for. Note anything else you spot; do not bundle it.
 - Read the file before you change it. An issue's `file:line` can be stale.
 - Re-run the acceptance check. **It must pass now and have failed before**, in the same
-  run. If it passed before your change, you fixed nothing — go back to step 4.
+  run. If it passed before your change, you fixed nothing — go back to step 5.
 - Run the repo's own gate:
 
 ```python
-r = capsule.proc.exec("./skills/auto-issue/scripts/gate.sh --repo-dir $HOME/work/repo", timeout=280)
+r = capsule.proc.exec("{baseDir}/scripts/gate.sh --repo-dir <REPO_DIR>", timeout=280)
 ```
 
 `gate.sh` detects the project's lint and test commands from `package.json`, `pyproject.toml`
@@ -157,10 +160,12 @@ Stop there and say which host to allow. Do not open a PR whose tests never ran.
 
 ## Step 7 — Size gate
 
-Check the diff before opening anything:
+Check the diff before opening anything. Stage first — `git diff` alone does not see
+untracked files, and on a skill whose whole discipline is "add a failing test", the new
+test file is exactly the one it would miss:
 
 ```python
-r = capsule.proc.exec("cd $HOME/work/repo && git diff --stat origin/HEAD", timeout=60)
+r = capsule.proc.exec("cd <REPO_DIR> && git add -A && git diff --cached --stat", timeout=60)
 ```
 
 Above roughly **500 changed lines**, stop and ask. Review quality falls off a cliff past
@@ -171,7 +176,7 @@ the loop stops converging. Split into stacked PRs, or narrow the scope.
 
 ```python
 r = capsule.proc.exec(
-    "cd $HOME/work/repo && git add -A && git commit -m '<message>' && git push -u origin af/issue-42",
+    "cd <REPO_DIR> && git commit -m '<message>' && git push -u origin af/issue-42",
     timeout=180,
 )
 ```
@@ -180,17 +185,21 @@ Then:
 
 ```python
 r = capsule.proc.exec(
-    "cd $HOME/work/repo && gh pr create --base main --head af/issue-42 "
+    "cd <REPO_DIR> && gh pr create --head af/issue-42 "
     "--title '<title>' --body '<body>'",
     timeout=120,
 )
 ```
 
+No `--base`: `gh pr create` targets the repository's own default branch, which is not
+always `main`. `clone.sh` also prints `BASE=` if you need the name for the PR body.
+
 The body carries **`Closes #42`** — that is what closes the issue on merge, and it belongs
 in the body, not the commit message. It also carries the acceptance check by name, and what
 it did before and after the fix.
 
-Match the repository's own commit voice; `git log --oneline -20` shows it. Never force-push.
+Match the repository's own commit voice. The clone is `--depth 1`, so seeing it needs a
+deepen first: `git fetch --depth 50 origin && git log --oneline -20`. Never force-push.
 Never commit to the default branch.
 
 Finally, comment the PR link back on the issue:

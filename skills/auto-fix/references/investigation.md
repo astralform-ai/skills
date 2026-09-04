@@ -18,8 +18,8 @@ how you end up fixing the wrong layer. Work from what you actually observed:
 
 ```python
 import capsule
-capsule.proc.exec("cd $REPO_DIR && grep -rn 'Cannot read properties of undefined' --include='*.ts' .", timeout=90)
-capsule.proc.exec("cd $REPO_DIR && git fetch --depth 100 origin && git log --oneline -20", timeout=120)
+capsule.proc.exec("cd <REPO_DIR> && grep -rn 'Cannot read properties of undefined' --include='*.ts' .", timeout=90)
+capsule.proc.exec("cd <REPO_DIR> && git fetch --depth 100 origin && git log --oneline -20", timeout=120)
 ```
 
 The clone is `--depth 1`, so `git log` shows one commit and `git blame` is useless until
@@ -47,10 +47,10 @@ Prefer the cheapest reproduction that still fails:
 3. The whole suite. Slow, and it drowns the signal in noise.
 
 ```python
-capsule.proc.exec("cd $REPO_DIR && npx vitest run src/foo/bar.test.ts -t 'the failing case'", timeout=240)
+capsule.proc.exec("cd <REPO_DIR> && npx vitest run src/foo/bar.test.ts -t 'the failing case'", timeout=240)
 ```
 
-Each `proc.exec` is a fresh shell, so `cd $REPO_DIR &&` goes on every command; there is no
+Each `proc.exec` is a fresh shell, so `cd <REPO_DIR> &&` goes on every command; there is no
 sticky working directory.
 
 ## Instrumenting when reading is not enough
@@ -58,7 +58,7 @@ sticky working directory.
 Adding a print is legitimate. Leaving it in is not.
 
 ```python
-capsule.proc.exec("cd $REPO_DIR && git diff --stat", timeout=60)
+capsule.proc.exec("cd <REPO_DIR> && git diff --stat", timeout=60)
 ```
 
 Run that before committing, every time. Debug output that ships is the most common

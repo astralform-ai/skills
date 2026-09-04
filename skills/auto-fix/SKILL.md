@@ -42,8 +42,9 @@ check it every time or a failure will read as success.
 
 - **Always pass `timeout`.** Cells are capped at 300 seconds; anything near 240 goes
   through `capsule.proc.run_background` and a poll.
-- **Clone under `$HOME/work/`.** Not `/tmp` (RAM) and not `/workspace` (a network mount).
-- **`jq` is not installed.** Use `gh … --jq '…'` or `python3 -c 'import json,sys; …'`.
+- **Clone under `./work/`.** Not `/tmp` (RAM) and not `/workspace` (a network mount).
+- **Parse JSON with `gh … --jq '…'` or `python3`.** The E2B code sandbox carries `jq`,
+  a Sprites sandbox does not, and `gh --jq` works on both.
 - **Scope:** needs `gh`, which the E2B code sandbox has and a Sprites sandbox does not.
 
 ## Step 1 — Pin down the symptom
@@ -61,7 +62,7 @@ a spinner forever, and the console says `Cannot read properties of undefined`" i
 ## Step 2 — Clone and reproduce
 
 ```python
-r = capsule.proc.exec("./skills/auto-fix/scripts/clone.sh owner/repo af/fix-<slug>", timeout=180)
+r = capsule.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/fix-<slug>", timeout=180)
 ```
 
 Read `REPO_DIR=` from stdout. Then reproduce, in this order of preference:
@@ -103,7 +104,7 @@ Read every file before you edit it.
 Re-run the acceptance check: it must pass now and have failed before, in the same run.
 
 ```python
-r = capsule.proc.exec("./skills/auto-fix/scripts/gate.sh --repo-dir $HOME/work/repo", timeout=280)
+r = capsule.proc.exec("{baseDir}/scripts/gate.sh --repo-dir <REPO_DIR>", timeout=280)
 ```
 
 **Exit code 3 means egress, not a broken repo.** The sandbox reaches `github.com` and
@@ -114,23 +115,26 @@ name the host. Do not open a PR whose tests never ran.
 ## Step 6 — Size gate, then open the PR
 
 ```python
-r = capsule.proc.exec("cd $HOME/work/repo && git diff --stat origin/HEAD", timeout=60)
+r = capsule.proc.exec("cd <REPO_DIR> && git add -A && git diff --cached --stat", timeout=60)
 ```
 
 Above roughly **500 changed lines**, stop and ask — review stops converging past that.
 
-Commit, push, and open the PR:
+Push and open the PR (the work is already staged by the size check above):
 
 ```python
 r = capsule.proc.exec(
-    "cd $HOME/work/repo && git add -A && git commit -m '<message>' && git push -u origin af/fix-<slug>",
+    "cd <REPO_DIR> && git commit -m '<message>' && git push -u origin af/fix-<slug>",
     timeout=180,
 )
 r = capsule.proc.exec(
-    "cd $HOME/work/repo && gh pr create --base main --head af/fix-<slug> --title '<title>' --body '<body>'",
+    "cd <REPO_DIR> && gh pr create --head af/fix-<slug> --title '<title>' --body '<body>'",
     timeout=120,
 )
 ```
+
+No `--base`: `gh pr create` targets the repository's own default branch, which is not
+always `main`. `clone.sh` prints `BASE=` if you need the name.
 
 The body carries the symptom as reported, the acceptance check by name, and what it did
 before and after. There is no issue number here unless the user named one — if they did,

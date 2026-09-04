@@ -5,20 +5,29 @@
 # passed. Detects the stack rather than assuming one.
 #
 # Exit codes are the interface:
-#   0  everything detected passed
-#   1  a check failed — the repo's own gate is red
-#   2  nothing to run (no recognised project manifest)
+#   0  at least one real check ran and everything that ran passed
+#   1  a check failed, or one exceeded the budget
+#   2  nothing to run — no recognised manifest, or none that defines a check
 #   3  EGRESS — a dependency install could not reach a host
+#  64  usage error — kept OFF 2, so a caller that reads 2 as "this repo has no
+#      gate" cannot mistake a mistyped argument for a clean verdict
 #
-# 3 is separate on purpose. This sandbox reaches github.com and whatever the
-# agent's network policy allows, and nothing else. An install that cannot resolve
-# a host is not a broken repository and must not be reported as one — the caller
-# stops and names the host to allow, rather than opening a PR whose tests never
-# ran.
+# Two distinctions this script exists to make, because getting either wrong
+# produces a confident wrong answer:
+#
+#   * A failing gate (1) vs an unreachable host (3). This sandbox reaches
+#     github.com and whatever the agent's network policy allows, nothing else.
+#     Every package manager exits 1 for both, so the OUTPUT is what separates
+#     them. Reporting an egress wall as a red test suite sends the caller
+#     hunting for a bug that does not exist.
+#   * A check that RAN vs a manifest that merely EXISTS. Installing dependencies
+#     proves nothing about the code. Only lint, typecheck and test count toward
+#     PASS, so a repo that defines none of them exits 2 rather than handing back
+#     a green light nothing earned.
 
 set -euo pipefail
 
-die() { echo "gate.sh: $*" >&2; exit 2; }
+die() { echo "gate.sh: $*" >&2; exit 64; }
 
 REPO_DIR=""
 BUDGET=240
@@ -37,76 +46,92 @@ cd "$REPO_DIR"
 OUT="$(mktemp)"
 trap 'rm -f "$OUT"' EXIT
 
-# An install that fails because a host is unreachable, told apart from one that
-# fails because the code is wrong. Checked against the OUTPUT, not the exit code,
-# because every package manager exits 1 for both.
+# How many real checks executed. Incremented by run_check only, never by setup.
+CHECKS=0
+
 egress_wall() {
   grep -qiE "could not resolve host|temporary failure in name resolution|getaddrinfo|network is unreachable|connection refused|EAI_AGAIN|ETIMEDOUT|tunneling socket could not be established" "$1"
 }
 
-# The host a failed fetch was reaching for, so the caller can name it.
+# The host a failed fetch reached for. Each pattern is tried on its own: a
+# pipeline ending in sed exits 0 on empty input, so chaining them with `||` made
+# the second pattern unreachable. `|| true` guards SIGPIPE from head under
+# `set -o pipefail`, which is a 141 that says nothing about the match.
 blocked_host() {
-  grep -oiE "https?://[a-z0-9.-]+" "$1" | head -1 | sed -E 's#https?://##' ||
-    grep -oiE "host: ?[a-z0-9.-]+" "$1" | head -1 | sed -E 's/host: ?//'
+  local h
+  h="$( { grep -oiE "https?://[a-z0-9.-]+" "$1" || true; } | head -1 | sed -E 's#https?://##')"
+  [ -n "$h" ] || h="$( { grep -oiE "host: ?[a-z0-9.-]+" "$1" || true; } | head -1 | sed -E 's/host: ?//I')"
+  printf '%s' "$h"
 }
 
-run() {
+# Runs one command and classifies its failure. `code` is captured INSIDE the
+# condition: `$?` after an if-without-else is the status of the compound (zero
+# when no branch ran), not of the command — reading it afterwards silently loses
+# timeout's 124 and turns "too slow" into "your tests are red".
+_exec() {
   local label="$1"; shift
+  local code=0
   echo "gate.sh: $label — $*" >&2
   if timeout "$BUDGET" "$@" >"$OUT" 2>&1; then
     tail -5 "$OUT" >&2
     return 0
+  else
+    code=$?
   fi
-  local code=$?
   tail -30 "$OUT" >&2
   if egress_wall "$OUT"; then
     local host; host="$(blocked_host "$OUT")"
-    echo "EGRESS: allow ${host:-the host above} on this agent"
+    echo "EGRESS: allow ${host:-the host in the output above} on this agent"
     exit 3
   fi
   if [ "$code" -eq 124 ]; then
-    echo "TIMEOUT: $label exceeded ${BUDGET}s — run it in the background and poll"
+    echo "TIMEOUT: $label exceeded ${BUDGET}s — run it with capsule.proc.run_background and poll"
     exit 1
   fi
   echo "FAIL: $label"
   exit 1
 }
 
-RAN=0
+# Setup: needed for the checks to run, but never evidence on its own.
+run_setup() { _exec "$@"; }
+
+# A real check. Only these make PASS possible.
+run_check() { _exec "$@"; CHECKS=$((CHECKS + 1)); }
 
 if [ -f package.json ]; then
-  RAN=1
-  if [ -f package-lock.json ]; then run "install" npm ci
-  elif [ -f pnpm-lock.yaml ]; then run "install" pnpm install --frozen-lockfile
-  elif [ -f yarn.lock ]; then run "install" yarn install --frozen-lockfile
-  else run "install" npm install
+  if [ -f package-lock.json ]; then run_setup "install" npm ci
+  elif [ -f pnpm-lock.yaml ]; then run_setup "install" pnpm install --frozen-lockfile
+  elif [ -f yarn.lock ]; then run_setup "install" yarn install --frozen-lockfile
+  else run_setup "install" npm install
   fi
-  # Only scripts the repo actually defines; asking for a missing one is not a failure.
+  # Only scripts the repo actually defines; a missing one is not a failure.
   has_script() { node -e "process.exit(require('./package.json').scripts?.['$1']?0:1)" 2>/dev/null; }
-  has_script lint && run "lint" npm run lint
-  has_script typecheck && run "typecheck" npm run typecheck
-  has_script test && run "test" npm test
+  has_script lint && run_check "lint" npm run lint
+  has_script typecheck && run_check "typecheck" npm run typecheck
+  has_script test && run_check "test" npm test
 fi
 
 if [ -f pyproject.toml ]; then
-  RAN=1
   if command -v uv >/dev/null 2>&1; then
-    run "install" uv sync
-    grep -q '"\?ruff"\?' pyproject.toml && run "lint" uv run ruff check .
-    run "test" uv run pytest -q
+    run_setup "install" uv sync
+    grep -q "ruff" pyproject.toml && run_check "lint" uv run ruff check .
+    run_check "test" uv run pytest -q
   else
-    command -v ruff >/dev/null 2>&1 && run "lint" ruff check .
-    command -v pytest >/dev/null 2>&1 && run "test" pytest -q
+    # No uv means nothing was installed, so only tools already on PATH can run.
+    # If neither is present, CHECKS stays 0 and the exit below says so rather
+    # than reporting a gate that never executed as green.
+    command -v ruff >/dev/null 2>&1 && run_check "lint" ruff check .
+    command -v pytest >/dev/null 2>&1 && run_check "test" pytest -q
   fi
 fi
 
-if [ "$RAN" -eq 0 ] && [ -f Makefile ]; then
-  grep -qE "^test:" Makefile && { RAN=1; run "test" make test; }
+if [ "$CHECKS" -eq 0 ] && [ -f Makefile ]; then
+  grep -qE "^test:" Makefile && run_check "test" make test
 fi
 
-if [ "$RAN" -eq 0 ]; then
-  echo "NO GATE: no package.json, pyproject.toml or Makefile test target found"
+if [ "$CHECKS" -eq 0 ]; then
+  echo "NO GATE: nothing to run — no lint, typecheck or test was found to execute"
   exit 2
 fi
 
-echo "PASS: the repository's own checks are green"
+echo "PASS: the repository's own checks are green ($CHECKS ran)"

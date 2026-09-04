@@ -23,11 +23,11 @@ Two consequences worth holding onto:
 
 ```python
 import capsule
-r = capsule.proc.exec("./skills/auto-issue/scripts/clone.sh owner/repo af/issue-42", timeout=180)
+r = capsule.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/issue-42", timeout=180)
 assert r["exit_code"] == 0, r["stderr"]
 ```
 
-Read `REPO_DIR=` out of stdout. Every later command is `cd $REPO_DIR && …`, because each
+Read `REPO_DIR=` out of stdout. Every later command is `cd <REPO_DIR> && …`, because each
 `proc.exec` starts a fresh shell in the sandbox home — there is no persistent cwd.
 
 The clone is shallow (`--depth 1 --single-branch`). That is enough to edit, commit and
@@ -35,7 +35,7 @@ push. It is not enough to read history: `git log` shows one commit, and `git bla
 useless. If the issue turns on how something came to be, fetch what you need explicitly:
 
 ```python
-capsule.proc.exec("cd $REPO_DIR && git fetch --depth 50 origin", timeout=120)
+capsule.proc.exec("cd <REPO_DIR> && git fetch --depth 50 origin", timeout=120)
 ```
 
 Deepen deliberately, not by default. A full fetch on a large repository can exhaust the
@@ -63,9 +63,9 @@ If the check involves a test file you added, prove the test is not vacuous: stas
 source change, run the test, watch it fail, restore.
 
 ```python
-capsule.proc.exec("cd $REPO_DIR && git stash push -- <source-file>", timeout=60)
+capsule.proc.exec("cd <REPO_DIR> && git stash push -- <source-file>", timeout=60)
 # run just the new test — it must FAIL
-capsule.proc.exec("cd $REPO_DIR && git stash pop", timeout=60)
+capsule.proc.exec("cd <REPO_DIR> && git stash pop", timeout=60)
 # run it again — it must PASS
 ```
 
@@ -78,7 +78,7 @@ A cell is capped at 300 seconds and `gate.sh` defaults to a 240 second budget. A
 suite can exceed both. When it does:
 
 ```python
-h = capsule.proc.run_background("cd $REPO_DIR && npm test > /tmp/test.log 2>&1")
+h = capsule.proc.run_background("cd <REPO_DIR> && npm test > /tmp/test.log 2>&1")
 # poll, with a timeout on each poll
 capsule.proc.exec("tail -5 /tmp/test.log", timeout=30)
 ```
