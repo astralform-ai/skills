@@ -46,7 +46,7 @@ Four rules the sandbox imposes:
 - **Always pass `timeout`.** A cell is capped at 300 seconds; a call with no timeout dies
   with the cell and you lose its output. Anything near 240 seconds goes through
   `capsule.proc.run_background` and a poll.
-- **Clone under `./work/`.** Not `/tmp` (it is RAM) and not `/workspace` (a network
+- **Clone under `./work/`**, relative to the sandbox's working directory. Not `/tmp` (it is RAM) and not `/workspace` (a network
   mount that is slow and unreliable for git objects).
 - **Parse JSON with `gh … --json … --jq '…'` or `python3`.** The E2B code sandbox does
   carry `jq`, but a Sprites sandbox does not, and `gh`'s own `--jq` works on both — so
@@ -114,7 +114,7 @@ r = capsule.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/issue-42", timeo
 ```
 
 `clone.sh` runs `gh auth setup-git` so git uses the run's token through gh's credential
-helper — no token ever appears in a URL — then shallow-clones into `./work/<repo>`, beside the skill's own staged files,
+helper — no token ever appears in a URL — then shallow-clones into `./work/<repo>` under the sandbox's working directory,
 sets the bot's commit identity, and creates the branch. It prints `REPO_DIR=` and
 `BRANCH=`; read `REPO_DIR` from stdout and use it for everything below.
 
@@ -162,10 +162,11 @@ Stop there and say which host to allow. Do not open a PR whose tests never ran.
 
 Check the diff before opening anything. Stage first — `git diff` alone does not see
 untracked files, and on a skill whose whole discipline is "add a failing test", the new
-test file is exactly the one it would miss:
+test file is exactly the one it would miss. Measured against `origin/HEAD`, not the index,
+so a branch you resumed counts what it already carries too:
 
 ```python
-r = capsule.proc.exec("cd <REPO_DIR> && git add -A && git diff --cached --stat", timeout=60)
+r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && git diff --cached --stat origin/HEAD", timeout=60)
 ```
 
 Above roughly **500 changed lines**, stop and ask. Review quality falls off a cliff past

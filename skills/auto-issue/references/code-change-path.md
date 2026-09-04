@@ -55,7 +55,7 @@ and the sandbox's shallow clone gives you no history to notice that with.
 
 ## Prove the fix
 
-The acceptance check from step 4 must **fail before and pass after**, in the same run.
+The acceptance check from step 5 must **fail before and pass after**, in the same run.
 Demonstrating that is the whole point of writing it first, so do not skip re-running the
 failing case just because the fix looks obviously right.
 

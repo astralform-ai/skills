@@ -10,10 +10,10 @@
 #      which matters because a failed git command prints the URL it tried.
 #   2. Clones SHALLOW and single-branch. The sandbox has ~6.9 GB free and a full
 #      history plus dependencies can exhaust it.
-#   3. Clones into ./work, beside where the skill's own files are staged —
-#      NOT $HOME. Probed on code-interpreter-v1: the kernel's cwd is /home/user
-#      while $HOME is /root, so "$HOME/work" would scatter the clone into a
-#      different tree from everything else and depends on who the process is.
+#   3. Clones into ./work under the sandbox's WORKING DIRECTORY — not $HOME.
+#      Probed on code-interpreter-v1: the kernel's cwd is /home/user while $HOME
+#      is /root, so "$HOME/work" would put the clone in a different tree from
+#      everything else and depend on who the process is.
 #      Also not /tmp, which is RAM carved out of the 4 GB, and not /workspace,
 #      which is a network mount that is slow and unreliable for git objects.
 #   4. Sets a commit identity, because the sandbox has none and `git commit`
@@ -67,6 +67,7 @@ else
 fi
 
 cd "$DEST"
+DEST_ABS="$(pwd -P)"
 
 # Identity for the commits this run makes. The bot is the actor the token
 # belongs to, so attribute to it rather than to a person.
@@ -82,10 +83,10 @@ BASE="$(git rev-parse --abbrev-ref HEAD)"
 if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
   git fetch --depth 1 origin "$BRANCH":"$BRANCH" >/dev/null 2>&1 \
     || die "branch $BRANCH already exists on the remote and could not be fetched"
-  git checkout -- "$BRANCH" >/dev/null 2>&1 || die "could not check out the existing branch $BRANCH"
+  git checkout "$BRANCH" >/dev/null 2>&1 || die "could not check out the existing branch $BRANCH"
   echo "clone.sh: $BRANCH already exists on the remote — continuing on it" >&2
 elif git rev-parse --verify --quiet "$BRANCH" >/dev/null; then
-  git checkout -- "$BRANCH" >/dev/null 2>&1 || die "branch $BRANCH exists but could not be checked out"
+  git checkout "$BRANCH" >/dev/null 2>&1 || die "branch $BRANCH exists but could not be checked out"
 else
   git checkout -b "$BRANCH" >/dev/null 2>&1 || die "could not create branch $BRANCH"
 fi
@@ -93,6 +94,6 @@ fi
 # ABSOLUTE, because each capsule.proc.exec is a fresh shell: nothing this
 # script exports survives, so the caller must substitute this literal path into
 # later commands rather than expect a $REPO_DIR variable to exist.
-echo "REPO_DIR=$(cd "$DEST" && pwd)"
+echo "REPO_DIR=$DEST_ABS"
 echo "BRANCH=$BRANCH"
 echo "BASE=$BASE"

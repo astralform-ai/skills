@@ -42,7 +42,7 @@ check it every time or a failure will read as success.
 
 - **Always pass `timeout`.** Cells are capped at 300 seconds; anything near 240 goes
   through `capsule.proc.run_background` and a poll.
-- **Clone under `./work/`.** Not `/tmp` (RAM) and not `/workspace` (a network mount).
+- **Clone under `./work/`**, relative to the sandbox's working directory. Not `/tmp` (RAM) and not `/workspace` (a network mount).
 - **Parse JSON with `gh … --jq '…'` or `python3`.** The E2B code sandbox carries `jq`,
   a Sprites sandbox does not, and `gh --jq` works on both.
 - **Scope:** needs `gh`, which the E2B code sandbox has and a Sprites sandbox does not.
@@ -115,8 +115,12 @@ name the host. Do not open a PR whose tests never ran.
 ## Step 6 — Size gate, then open the PR
 
 ```python
-r = capsule.proc.exec("cd <REPO_DIR> && git add -A && git diff --cached --stat", timeout=60)
+r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && git diff --cached --stat origin/HEAD", timeout=60)
 ```
+
+Read the `git status --short` line first: `gate.sh` ran an install in this tree, so a repo
+with no lockfile now has a generated one. Unstage anything the fix did not intend before
+committing.
 
 Above roughly **500 changed lines**, stop and ask — review stops converging past that.
 
