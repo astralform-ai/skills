@@ -107,6 +107,10 @@ Re-run the acceptance check: it must pass now and have failed before, in the sam
 r = capsule.proc.exec("{baseDir}/scripts/gate.sh --repo-dir <REPO_DIR>", timeout=280)
 ```
 
+**Exit code 2 means nothing ran**, and it is not a pass: no manifest, no lint/test script,
+or a toolchain this sandbox does not have. Say which, and do not describe the fix as
+verified by a gate that never executed.
+
 **Exit code 3 means egress, not a broken repo.** The sandbox reaches `github.com` and
 whatever this agent's network policy allows, nothing more. If a dependency install cannot
 resolve a host, `gate.sh` prints `EGRESS: allow <host> on this agent` and exits 3. Stop and
@@ -131,7 +135,8 @@ numbers so you can tell the two apart: `THIS-SESSION` is what this run changed o
 the branch, `WHOLE-BRANCH` is what the PR contains. When they diverge sharply on a resumed
 task, say so rather than splitting a PR that was never oversized.
 
-Above roughly **500 changed lines**, stop and ask — review stops converging past that.
+Judge **WHOLE-BRANCH** against roughly **500 changed lines** — that is what a reviewer
+opens — and stop and ask above it. Review stops converging past that.
 
 Push and open the PR (the work is already staged by the size check above):
 

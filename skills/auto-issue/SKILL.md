@@ -153,6 +153,10 @@ r = capsule.proc.exec("{baseDir}/scripts/gate.sh --repo-dir <REPO_DIR>", timeout
 `gate.sh` detects the project's lint and test commands from `package.json`, `pyproject.toml`
 or a `Makefile`, runs them inside a budget, and prints a one-line verdict.
 
+**Exit code 2 means nothing ran**, and it is not a pass: no manifest, no lint/test script,
+or a toolchain this sandbox does not have. Say which, and do not describe the fix as
+verified by a gate that never executed.
+
 **Exit code 3 means egress, not a broken repo.** The sandbox reaches `github.com` and
 whatever this agent's network policy allows, and nothing else. If a dependency install
 cannot resolve a host, `gate.sh` prints `EGRESS: allow <host> on this agent` and exits 3.
@@ -162,8 +166,8 @@ Stop there and say which host to allow. Do not open a PR whose tests never ran.
 
 Check the diff before opening anything. Stage first — `git diff` alone does not see
 untracked files, and on a skill whose whole discipline is "add a failing test", the new
-test file is exactly the one it would miss. Measured against `origin/HEAD`, not the index,
-so a branch you resumed counts what it already carries too:
+test file is exactly the one it would miss. It prints two stats, because a branch you
+resumed carries work this run did not do:
 
 ```python
 r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && echo THIS-SESSION && git diff --cached --stat && echo WHOLE-BRANCH && git diff --cached --stat origin/HEAD", timeout=60)
@@ -182,7 +186,8 @@ numbers so you can tell the two apart: `THIS-SESSION` is what this run changed o
 the branch, `WHOLE-BRANCH` is what the PR contains. When they diverge sharply on a resumed
 task, say so rather than splitting a PR that was never oversized.
 
-Above roughly **500 changed lines**, stop and ask. Review quality falls off a cliff past
+Judge **WHOLE-BRANCH** against roughly **500 changed lines** — that is what a reviewer
+opens — and stop and ask above it. Review quality falls off a cliff past
 that: the reviewer re-reads the whole diff on every push, so findings scale with size and
 the loop stops converging. Split into stacked PRs, or narrow the scope.
 

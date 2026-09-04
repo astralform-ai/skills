@@ -7,7 +7,8 @@
 # Exit codes are the interface:
 #   0  at least one real check ran and everything that ran passed
 #   1  a check failed, or one exceeded the budget
-#   2  nothing to run — no recognised manifest, or none that defines a check
+#   2  nothing to run — no recognised manifest, none that defines a check, or
+#      none whose toolchain is installed in this sandbox
 #   3  EGRESS — a dependency install could not reach a host
 #  64  usage error — kept OFF 2, so a caller that reads 2 as "this repo has no
 #      gate" cannot mistake a mistyped argument for a clean verdict
@@ -99,23 +100,38 @@ run_setup() { _exec "$@"; }
 run_check() { _exec "$@"; CHECKS=$((CHECKS + 1)); }
 
 if [ -f package.json ]; then
-  # A missing toolchain is not a red gate. Without npm this would run
-  # `timeout 240 npm ci`, get 127, and print FAIL: install — telling the caller
-  # the repository is broken when the sandbox simply cannot build it.
-  if ! command -v npm >/dev/null 2>&1; then
-    echo "NO GATE: package.json found but npm is not installed in this sandbox"
-    exit 2
+  # A missing toolchain is not a red gate: without the manager this repo's
+  # lockfile names, `npm ci` would return 127 and print FAIL: install, telling
+  # the caller the repository is broken when only the sandbox is unequipped.
+  #
+  # This SKIPS the block rather than exiting, because a repo can carry both a
+  # package.json and a pyproject.toml — exiting here would silently deny the
+  # Python gate its turn.
+  JS_MANAGER=""
+  if [ -f pnpm-lock.yaml ]; then
+    command -v pnpm >/dev/null 2>&1 && JS_MANAGER="pnpm"
+  elif [ -f yarn.lock ]; then
+    command -v yarn >/dev/null 2>&1 && JS_MANAGER="yarn"
+  elif command -v npm >/dev/null 2>&1; then
+    JS_MANAGER="npm"
   fi
-  if [ -f package-lock.json ]; then run_setup "install" npm ci
-  elif [ -f pnpm-lock.yaml ] && command -v pnpm >/dev/null 2>&1; then run_setup "install" pnpm install --frozen-lockfile
-  elif [ -f yarn.lock ] && command -v yarn >/dev/null 2>&1; then run_setup "install" yarn install --frozen-lockfile
-  else run_setup "install" npm install
+
+  if [ -z "$JS_MANAGER" ]; then
+    echo "gate.sh: package.json found but its package manager is not installed here — skipping the JS checks" >&2
+  else
+    case "$JS_MANAGER" in
+      pnpm) run_setup "install" pnpm install --frozen-lockfile ;;
+      yarn) run_setup "install" yarn install --frozen-lockfile ;;
+      npm)  if [ -f package-lock.json ]; then run_setup "install" npm ci
+            else run_setup "install" npm install
+            fi ;;
+    esac
+    # Only scripts the repo actually defines; a missing one is not a failure.
+    has_script() { node -e "process.exit(require('./package.json').scripts?.['$1']?0:1)" 2>/dev/null; }
+    if has_script lint; then run_check "lint" "$JS_MANAGER" run lint; fi
+    if has_script typecheck; then run_check "typecheck" "$JS_MANAGER" run typecheck; fi
+    if has_script test; then run_check "test" "$JS_MANAGER" run test; fi
   fi
-  # Only scripts the repo actually defines; a missing one is not a failure.
-  has_script() { node -e "process.exit(require('./package.json').scripts?.['$1']?0:1)" 2>/dev/null; }
-  if has_script lint; then run_check "lint" npm run lint; fi
-  if has_script typecheck; then run_check "typecheck" npm run typecheck; fi
-  if has_script test; then run_check "test" npm test; fi
 fi
 
 if [ -f pyproject.toml ]; then
