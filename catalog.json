@@ -314,8 +314,8 @@
       "id": "auto-issue",
       "name": "auto-issue",
       "display_name": "Auto Issue",
-      "description": "Drive a GitHub issue from open to closed: triage, apply the minimal fix in a worktree, open a PR, and drive it to merge.",
-      "version": "0.1.0",
+      "description": "Take a GitHub issue to a pull request inside the agent's sandbox: check the author's trust, triage whether it needs code at all, write the acceptance check and watch it fail, then clone, fix, prove the check flips, and open the PR. Requires a code-mode agent and a task bound to a project.",
+      "version": "2.0.0",
       "author": "atom2ueki",
       "type": "internal",
       "path": "skills/auto-issue",
@@ -326,7 +326,8 @@
         "issues",
         "pr"
       ],
-      "featured": true
+      "featured": true,
+      "required_envs": []
     },
     {
       "id": "auto-pr",
@@ -350,8 +351,8 @@
       "id": "auto-fix",
       "name": "auto-fix",
       "display_name": "Auto Fix",
-      "description": "Turn a bug report, stack trace, or change request into a proven root cause, a minimal fix, and a merged PR.",
-      "version": "0.1.0",
+      "description": "Take a reported symptom to a pull request inside the agent's sandbox: reproduce it in a clone, turn the reproduction into a failing check, fix the cause, prove the check flips, and open the PR. Requires a code-mode agent and a task bound to a project.",
+      "version": "2.0.0",
       "author": "atom2ueki",
       "type": "internal",
       "path": "skills/auto-fix",
@@ -362,7 +363,8 @@
         "fix",
         "pr"
       ],
-      "featured": true
+      "featured": true,
+      "required_envs": []
     }
   ]
 }
