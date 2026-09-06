@@ -1,25 +1,22 @@
 #!/usr/bin/env bash
 # reply-thread.sh <PR#> <comment_id> <body>
 #
-# Replies to a specific inline review comment via the REST endpoint:
+# Reply to one inline review comment:
 #   POST /repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies
 #
-# REST is one of two valid reply paths. The GraphQL equivalent is:
-#   addPullRequestReviewThreadReply(input: {pullRequestReviewThreadId: $tid, body: ...})
-# Use whichever matches the ID you already have. This script defaults to REST
-# because list-unresolved-threads.sh surfaces both `comment_id` (integer
-# `databaseId`, REST) and `thread_id` (PRRT_ node ID, GraphQL).
+# `comment_id` is the integer `databaseId` that pr-state.py reports per thread —
+# NOT the GraphQL node ID and NOT the thread_id. pr-state.py points it at the
+# LATEST reviewer comment, so the reply lands under the remark you are answering.
 #
-# Whichever reply API you use, you STILL need scripts/resolve-thread.sh after.
-# Reply does not mark the thread resolved on its own — resolve must go through
-# GraphQL (REST has no resolveReviewThread equivalent).
+# Replying does NOT resolve the thread. Run scripts/resolve-thread.sh after —
+# resolve is GraphQL-only, REST has no equivalent.
 #
-# Usage:
-#   reply-thread.sh 123 1234567890 "Applied in <sha> — narrowed cycle check to direct refs."
-#   reply-thread.sh 123 1234567890 "Declining — actions/checkout@v6 exists (release URL). CI green."
+# Your reply body MUST end with a marker: <!-- auto-pr:fixed|nit|wrong -->.
+# The gate reads it back to make the classification durable; without one the
+# thread re-derives as unclassified on every round and the loop never converges.
 #
-# `comment_id` is the integer `databaseId` from list-unresolved-threads.sh,
-# NOT the GraphQL node ID and NOT the thread_id.
+# Uses gh's built-in --jq (gojq). Do NOT reach for `jq`: it is not installed in
+# this sandbox.
 
 set -euo pipefail
 
@@ -27,9 +24,10 @@ PR="${1:?PR number required}"
 COMMENT_ID="${2:?inline comment_id (databaseId integer) required}"
 BODY="${3:?reply body required}"
 
-REPO="$(gh pr view "$PR" --json url --jq '.url | capture("github.com/(?<o>[^/]+)/(?<r>[^/]+)/") | "\(.o)/\(.r)"')"
+REPO="$(gh pr view "$PR" --json url \
+  --jq '.url | capture("github.com/(?<o>[^/]+)/(?<r>[^/]+)/") | "\(.o)/\(.r)"')"
 
 gh api -X POST \
   "repos/$REPO/pulls/$PR/comments/$COMMENT_ID/replies" \
   -f body="$BODY" \
-  | jq '{id, url: .html_url, author: .user.login}'
+  --jq '{id: .id, url: .html_url, author: .user.login}'
