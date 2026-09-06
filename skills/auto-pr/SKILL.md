@@ -1,8 +1,8 @@
 ---
 name: auto-pr
-description: "Drive an open pull request to merge, waiting on CI and reviewers between rounds. Reads the review state as one verdict, classifies each finding as blocking, nit, or wrong, fixes only what blocks, replies with evidence, and squash-merges when the gate is satisfied. Runs as a self-paced goal, so it survives the wait instead of ending with the turn. Use when someone says '/auto-pr 123', 'drive PR 123 to merge', 'finish PR 123', or 'merge 123 when green'. Requires a task bound to a project. Do NOT trigger for reading or summarising a PR — only for driving one to merge."
+description: "Drive an open pull request to merge, waiting on CI and reviewers between rounds. Reads the review state as one verdict, classifies each finding as blocking, nit, or wrong, fixes only what blocks, replies with evidence, and squash-merges when the gate is satisfied. Runs as a self-paced goal, so it survives the wait instead of ending with the turn. Use when someone says '/auto-pr 123', 'drive PR 123 to merge', 'finish PR 123', or 'merge 123 when green'. Requires a task bound to a project (a repository). Do NOT trigger for reading or summarising a PR — only for driving one to merge."
 display_name: Auto PR
-version: "2.0.0"
+version: "2.0.1"
 author: Astralform
 metadata:
   run_as: goal
