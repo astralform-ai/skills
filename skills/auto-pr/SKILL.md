@@ -209,11 +209,13 @@ than guess, and the status says which kind of refusal it is:
 
 | Exit | Meaning | Do |
 |---|---|---|
-| `75` | It could not READ the pull request or its review — a transient 502 on the thread query, say | Schedule the next iteration (step 3) with the reason, and stop. A re-read costs one iteration |
+| `75` | It could not READ the pull request or its review — a 502 on the thread query, say | Schedule the next iteration (step 3) with the reason, and stop. A re-read costs one iteration. But a `75` that REPEATS with the same stderr is not a blip: a wrong `GH_REPO`, a deleted PR, an expired token. Quote the stderr and stop rather than waiting it out |
 | `64` | A bad argument — the PR number was not a number | Stop. Re-running changes nothing |
 | `1` | It read fine but the data is unusable | Stop and quote what it printed. This is a bug, not a wait |
 
-Never merge on an unread gate, and never escalate on a `75` — waiting is what it asked for.
+Never merge on an unread gate. Never escalate on a `75` you have not seen before — waiting is
+what it asked for — but a `75` that keeps coming back with the same stderr has stopped being a
+wait, and the row above says what to do with it.
 
 ### 2. Act on the verdict
 
