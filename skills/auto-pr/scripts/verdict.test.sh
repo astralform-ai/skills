@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 pass=0; fail=0
 
 # A PR with nothing wrong: no findings, green, reviewed, budget spare.
-HEALTHY='{"blocking":0,"unclassified":0,"all_green":true,"review_on_head":true,
+HEALTHY='{"blocking":0,"unclassified":0,"all_green":true,"failing":0,"review_on_head":true,
           "human_cr":false,"unreviewable":false,"round":1,"budget":3,
           "mergeable":"MERGEABLE","merge_state":"CLEAN"}'
 
@@ -42,7 +42,7 @@ verdict "healthy PR merges"                  MERGE
 verdict "an unclassified thread -> CLASSIFY" CLASSIFY     '{"unclassified":1}'
 verdict "a blocking finding -> FIX_BLOCKING" FIX_BLOCKING '{"blocking":1}'
 verdict "blocking outranks red checks"       FIX_BLOCKING '{"blocking":1,"all_green":false}'
-verdict "red checks -> WAIT_CHECKS"          WAIT_CHECKS  '{"all_green":false}'
+verdict "red checks -> WAIT_CHECKS"          WAIT_CHECKS  '{"all_green":false,"failing":1}'
 verdict "no review on head -> WAIT_REVIEW"   WAIT_REVIEW  '{"review_on_head":false}'
 
 echo "-- states that genuinely need a human --"
@@ -50,6 +50,7 @@ verdict "conflict -> ESCALATE"                ESCALATE '{"mergeable":"CONFLICTIN
 verdict "human CHANGES_REQUESTED -> ESCALATE" ESCALATE '{"human_cr":true}'
 verdict "unreviewable PR -> ESCALATE"         ESCALATE '{"unreviewable":true}'
 verdict "budget spent WITH blocking open"     ESCALATE '{"round":3,"blocking":1}'
+verdict "budget spent with a check still RED"  ESCALATE '{"round":3,"all_green":false,"failing":1}'
 verdict "branch BEHIND base -> ESCALATE"      ESCALATE '{"merge_state":"BEHIND"}'
 verdict "branch protection BLOCKED"           ESCALATE '{"merge_state":"BLOCKED"}'
 verdict "draft PR -> ESCALATE"                ESCALATE '{"merge_state":"DRAFT"}'
@@ -61,6 +62,7 @@ verdict "merge_state UNKNOWN alone -> WAIT"       WAIT_CHECKS '{"merge_state":"U
 verdict "UNSTABLE w/ required set green -> MERGE" MERGE       '{"merge_state":"UNSTABLE"}'
 verdict "HAS_HOOKS is mergeable -> MERGE"         MERGE       '{"merge_state":"HAS_HOOKS"}'
 verdict "budget spent but nothing blocking"       MERGE       '{"round":3,"blocking":0}'
+verdict "budget spent, a check merely RUNNING"    WAIT_CHECKS '{"round":3,"all_green":false,"failing":0}'
 
 echo
 echo "$pass passed, $fail failed"

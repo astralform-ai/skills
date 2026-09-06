@@ -9,6 +9,10 @@ metadata:
   cadence: self_paced
   max_continuations: "24"
   max_turns: "60"
+  # A polling loop repeats itself by nature. The evidence-signature breaker defaults to 2, so
+  # two iterations that both say "waiting on CI" would read as no progress and end the goal at
+  # round 2 — long before the 24 continuations above.
+  max_no_progress_continuations: "12"
 ---
 
 # Auto PR
@@ -55,6 +59,9 @@ no timeout of its own dies with the cell and tells you nothing about why.
 ## The gate
 
 `{baseDir}/scripts/pr-state.py <PR#>` returns the entire decision state as JSON.
+`{baseDir}` is the absolute-from-home path the skill loader substitutes; use it rather than a
+relative one, because a `FIX_BLOCKING` iteration works from inside the clone and a relative path
+would resolve against that instead.
 **Branch on `.verdict` and nothing else.** Do not assemble your own gate from
 `gh pr view`, and do not reason about whether a bot "seems satisfied".
 
@@ -191,7 +198,7 @@ merging, or by stopping.
 ### 1. Read the gate
 
 ```
-capsule.proc.exec('export GH_REPO=<owner/repo>; ./skills/auto-pr/scripts/pr-state.py <PR#>',
+capsule.proc.exec('export GH_REPO=<owner/repo>; {baseDir}/scripts/pr-state.py <PR#>',
                   timeout=180)
 ```
 
@@ -209,8 +216,8 @@ then reply and resolve:
 | NIT | `Noted — classified non-blocking for this PR (<docs/naming/scope>). Not changing it here. Resolving.` `<!-- auto-pr:nit -->` |
 
 ```
-./skills/auto-pr/scripts/reply-thread.sh <PR#> <comment_id> "<body>"
-./skills/auto-pr/scripts/resolve-thread.sh <thread_id>
+{baseDir}/scripts/reply-thread.sh <PR#> <comment_id> "<body>"
+{baseDir}/scripts/resolve-thread.sh <thread_id>
 ```
 
 `comment_id` and `thread_id` are different identifiers and different APIs; the
@@ -219,7 +226,7 @@ gate reports both per thread. Reply first, then resolve.
 **`FIX_BLOCKING`** — now, and only now, clone:
 
 ```
-./skills/auto-pr/scripts/clone.sh <owner/repo> <head-branch>
+{baseDir}/scripts/clone.sh <owner/repo> <head-branch>
 ```
 
 `clone.sh` prints `REPO_DIR=`. Check out the pull request's head branch inside
@@ -237,8 +244,9 @@ pattern-replace, a citation "improved" into the wrong symbol, a claim
 strengthened past its evidence. Each was obvious in the diff and invisible in
 the edit command.
 
-Commit the whole iteration as one commit, push once, and **do not ping the
-reviewer**: the push already triggered it, and two runs racing on one sha can
+Commit the whole iteration as one commit and push once with `git push origin HEAD` — the
+branch `clone.sh` fetched has no upstream configured, so a bare `git push` fails with "the
+current branch has no upstream branch". **Do not ping the reviewer**: the push already triggered it, and two runs racing on one sha can
 turn a green pull request red.
 
 **`WAIT_CHECKS` / `WAIT_REVIEW`** — nothing to do but come back. Skip to step 3.

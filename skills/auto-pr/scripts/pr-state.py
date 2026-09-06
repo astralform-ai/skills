@@ -62,7 +62,11 @@ SEVERITY_MARKER = {
     "nit": re.compile(r"^\s*\[NIT\]", re.IGNORECASE),
 }
 PROSE_SUFFIXES = (".md", ".mdx", ".txt", ".rst")
-REVIEW_WORKFLOW_PATH = re.compile(r"\.github/workflows/(claude-review|claude)\.ya?ml$")
+# Any workflow whose filename looks like a review. The workflow NAME is configurable
+# (AUTO_PR_REVIEW_WORKFLOW), so pinning this to two filenames left a repo that renamed its
+# review workflow with a working round count and a silently dead unreviewable guard — the one
+# guard standing between the loop and merging unreviewed code.
+REVIEW_WORKFLOW_PATH = re.compile(r"\.github/workflows/[^/]*review[^/]*\.ya?ml$", re.IGNORECASE)
 
 PR_FIELDS = (
     "url,number,state,headRefName,baseRefName,headRefOid,mergeable,"
@@ -90,17 +94,30 @@ BOT_SUBSTRINGS = (
 )
 
 
-def gh(*args: str, check: bool = True) -> str:
-    """Run `gh` and return stdout. Returns "" on failure when check is False."""
+def gh_run(*args: str) -> tuple[int, str]:
+    """Run `gh` and return (exit status, stdout). The status is the point: several callers
+    below must tell "the API said nothing" from "the API could not be reached", and an empty
+    string cannot carry that difference."""
     proc = subprocess.run(
         ["gh", *args], capture_output=True, text=True, timeout=120  # noqa: S603,S607
     )
     if proc.returncode != 0:
+        sys.stderr.write(proc.stderr)
+    return proc.returncode, proc.stdout
+
+
+def gh(*args: str, check: bool = True) -> str:
+    """Run `gh` and return stdout. Returns "" on failure when check is False.
+
+    Use `check=False` ONLY where a failure degrades safely — toward waiting, or toward a wider
+    gating set. Where a failure would degrade toward MERGE, use `gh_run` and read the status.
+    """
+    code, out = gh_run(*args)
+    if code != 0:
         if check:
-            sys.stderr.write(proc.stderr)
-            raise SystemExit(f"gh {' '.join(args)} failed (exit {proc.returncode})")
+            raise SystemExit(f"gh {' '.join(args)} failed (exit {code})")
         return ""
-    return proc.stdout
+    return out
 
 
 def gh_json(*args: str, default=None, check: bool = True):
@@ -157,19 +174,56 @@ def parse_ts(value: str | None) -> datetime | None:
 #
 # There is deliberately NO keyword heuristic. An honest "unclassified" the agent
 # must answer beats a confident wrong label.
-def classify_thread(thread: dict, author: str) -> dict | None:
+def resolve_self_login(threads: list[dict], author: str) -> tuple[str, str | None]:
+    """Which login are WE? Returns ``(login, warning)``.
+
+    This is not the PR author. `/auto-pr 123` is meant to be run against someone else's pull
+    request, and the reply lands as whatever account the run's token belongs to. Reading "our
+    last reply" off the PR author would then find nothing: escalation detection collapses
+    (a reviewer coming back on a resolved thread stays `settled`, and the gate merges over it)
+    and every marker is invisible, so classifications never persist.
+
+    Three sources, in order of how much they can be trusted:
+
+    1. A comment carrying our own `auto-pr` marker is ours whatever login posted it. Identity-
+       free, and available from the first marked reply — which is exactly when it starts to
+       matter.
+    2. `gh api user`. Right for a personal token; a GitHub App installation token gets a 403
+       here, which is why it is not the only source.
+    3. The PR author, which is correct only when the agent opened the pull request.
+    """
+    for thread in threads:
+        for comment in reversed((thread.get("comments") or {}).get("nodes") or []):
+            if MARKER_RE.search(comment.get("body") or ""):
+                return (comment.get("author") or {}).get("login") or author, None
+    code, out = gh_run("api", "user", "--jq", ".login")
+    if code == 0 and out.strip():
+        return out.strip(), None
+    override = os.environ.get("AUTO_PR_SELF_LOGIN", "").strip()
+    if override:
+        return override, None
+    return author, (
+        "Could not determine which account this run posts as (no marked reply yet, and "
+        "`gh api user` is not available to this token — an App installation token gets 403). "
+        f"Assuming the PR author, {author!r}. If the run posts as someone else, escalation "
+        "detection is blind until the first marked reply; set AUTO_PR_SELF_LOGIN to fix it now."
+    )
+
+
+def classify_thread(thread: dict, author: str, me: str) -> dict | None:
     comments = (thread.get("comments") or {}).get("nodes") or []
     if not comments:
         return None
     originator = (comments[0].get("author") or {}).get("login") or ""
-    # A thread the PR author opened is not an outstanding request against the
-    # author. Judged on the ORIGINATOR: our own replies are the latest comment
-    # on nearly every thread we have answered.
-    if originator == author:
+    # A thread the PR author opened is not an outstanding request against the author. Judged on
+    # the ORIGINATOR: our own replies are the latest comment on nearly every thread we have
+    # answered. This one really is about the AUTHOR — a thread we opened is filtered by `me`
+    # below, through the ours/theirs split.
+    if originator in (author, me):
         return None
 
-    ours = [c for c in comments if ((c.get("author") or {}).get("login") or "") == author]
-    theirs = [c for c in comments if ((c.get("author") or {}).get("login") or "") != author]
+    ours = [c for c in comments if ((c.get("author") or {}).get("login") or "") == me]
+    theirs = [c for c in comments if ((c.get("author") or {}).get("login") or "") != me]
     last_ours = ours[-1] if ours else None
     last_theirs = theirs[-1] if theirs else None
 
@@ -257,6 +311,16 @@ def decide_verdict(s: dict) -> dict:
         return {"verdict": "ESCALATE", "note": None}
     if s["round"] >= s["budget"] and s["blocking"] > 0:
         return {"verdict": "ESCALATE", "note": None}
+    # A check that is RED at budget is not going to go green by waiting: an infra credential the
+    # sandbox cannot supply, a suite that fails deterministically. Without this the loop spins
+    # every remaining continuation on WAIT_CHECKS and nobody hears about it. A check merely
+    # RUNNING at budget is a different thing and still just waits.
+    if s["round"] >= s["budget"] and s["failing"] > 0:
+        return {
+            "verdict": "ESCALATE",
+            "note": "A check is still failing after the round budget — it is not going to pass "
+            "by waiting. See checks.failing.",
+        }
     if s["unclassified"] > 0:
         return {"verdict": "CLASSIFY", "note": None}
     if s["blocking"] > 0:
@@ -329,7 +393,13 @@ def main() -> int:
     if len(sys.argv) < 2:
         sys.stderr.write("usage: pr-state.py <PR#>\n")
         return 64
-    pr = sys.argv[1]
+    pr = sys.argv[1].strip().lstrip("#")
+    # GraphQL's Int! and the output's int() both need a bare number, while `gh pr view` would
+    # happily take a URL — so a URL got most of the way through, returned zero threads from the
+    # GraphQL call, and died with a traceback at output time instead of saying what was wrong.
+    if not pr.isdigit():
+        sys.stderr.write(f"usage: pr-state.py <PR#> — expected a number, got {sys.argv[1]!r}\n")
+        return 64
     budget = int(os.environ.get("AUTO_PR_ROUND_BUDGET", "3"))
     review_workflow = os.environ.get("AUTO_PR_REVIEW_WORKFLOW", "PR Review")
     warnings: list[str] = []
@@ -449,11 +519,22 @@ def main() -> int:
           }
         }
       }"""
-    pages_raw = gh(
+    # The ONE call whose failure must not degrade quietly. Every other `gh` here fails safe:
+    # `gh pr view` bails, a failed `run list` only pushes toward WAIT_REVIEW, a failed
+    # protection read only widens the gating set. Here an empty result would mean zero threads,
+    # zero blocking findings, and a MERGE verdict on an unread review — so read the status and
+    # refuse rather than emit a verdict. A hard exit costs one iteration of a self-paced loop;
+    # a wrong merge cannot be taken back.
+    threads_status, pages_raw = gh_run(
         "api", "graphql", "--paginate", "-f", f"query={query}",
         "-f", f"owner={owner}", "-f", f"repo={repo}", "-F", f"pr={pr}",
-        check=False,
     )
+    if threads_status != 0 or not pages_raw.strip():
+        sys.stderr.write(
+            "could not read the review threads (gh exit "
+            f"{threads_status}) — refusing to emit a verdict on an unread review\n"
+        )
+        return 1
     raw_threads: list[dict] = []
     total_threads = 0
     for line in pages_raw.splitlines():
@@ -490,7 +571,10 @@ def main() -> int:
             "read. Escalation detection may be stale on those."
         )
 
-    classified = [c for c in (classify_thread(t, author) for t in raw_threads) if c]
+    me, identity_warning = resolve_self_login(raw_threads, author)
+    if identity_warning:
+        warnings.append(identity_warning)
+    classified = [c for c in (classify_thread(t, author, me) for t in raw_threads) if c]
     by_severity: dict[str, list[dict]] = {"blocking": [], "nit": [], "unclassified": []}
     settled = 0
     for thread in classified:
@@ -523,12 +607,23 @@ def main() -> int:
 
     all_checks = []
     for check in pr_json.get("statusCheckRollup") or []:
+        # statusCheckRollup is a union. A CheckRun has `status` + `conclusion`; a StatusContext
+        # (the legacy commit-status API — Buildkite, CircleCI, Vercel) has only `state`, which
+        # is where ITS pending lives. Defaulting a missing `status` to COMPLETED therefore read
+        # a pending status context as green, and FAILURE/ERROR only worked by spelling
+        # collision. Fold the two shapes into one before anything reads them.
+        state = (check.get("state") or "").upper()
+        status = (check.get("status") or "").upper()
+        if not status:
+            status = "PENDING" if state in ("PENDING", "EXPECTED") else "COMPLETED"
         all_checks.append(
             {
                 "name": check.get("name") or check.get("context") or "check",
-                "status": (check.get("status") or "COMPLETED").upper(),
-                "conclusion": (check.get("conclusion") or check.get("state") or "").upper(),
-                "startedAt": check.get("startedAt"),
+                "status": status,
+                "conclusion": (check.get("conclusion") or state or "").upper(),
+                # A StatusContext has no startedAt; createdAt is the nearest truth, and without
+                # it the ">15 minutes pending" warning could never fire for these.
+                "startedAt": check.get("startedAt") or check.get("createdAt"),
             }
         )
     gating = [c for c in all_checks if c["name"] in required] if required else all_checks
@@ -579,6 +674,7 @@ def main() -> int:
             "blocking": len(by_severity["blocking"]),
             "unclassified": len(by_severity["unclassified"]),
             "all_green": all_green,
+            "failing": len(failing),
             "review_on_head": review_on_head,
             "human_cr": human_cr,
             "unreviewable": unreviewable,
