@@ -65,8 +65,13 @@ PROSE_SUFFIXES = (".md", ".mdx", ".txt", ".rst")
 # Any workflow whose filename looks like a review. The workflow NAME is configurable
 # (AUTO_PR_REVIEW_WORKFLOW), so pinning this to two filenames left a repo that renamed its
 # review workflow with a working round count and a silently dead unreviewable guard — the one
-# guard standing between the loop and merging unreviewed code.
-REVIEW_WORKFLOW_PATH = re.compile(r"\.github/workflows/[^/]*review[^/]*\.ya?ml$", re.IGNORECASE)
+# guard standing between the loop and merging unreviewed code. `review` must follow a
+# separator or start the name: `preview.yml` is a deploy preview, not a reviewer, and
+# escalating on it hands a person a non-problem on the first iteration. `claude.yml` stays
+# named because that is the filename claude-code-action installs and many repos review from it.
+REVIEW_WORKFLOW_PATH = re.compile(
+    r"\.github/workflows/(?:(?:[^/]*[-_.])?review[^/]*|claude)\.ya?ml$", re.IGNORECASE
+)
 
 PR_FIELDS = (
     "url,number,state,headRefName,baseRefName,headRefOid,mergeable,"
@@ -183,8 +188,11 @@ def resolve_self_login(threads: list[dict], author: str) -> tuple[str, str | Non
     (a reviewer coming back on a resolved thread stays `settled`, and the gate merges over it)
     and every marker is invisible, so classifications never persist.
 
-    Three sources, in order of how much they can be trusted:
+    Four sources, in order:
 
+    0. ``AUTO_PR_SELF_LOGIN``. FIRST, because an override exists to correct a detection that is
+       WRONG, not merely absent — consulted last it could never fix the case an operator would
+       reach for it.
     1. A comment carrying our own `auto-pr` marker is ours whatever login posted it. Identity-
        free, and available from the first marked reply — which is exactly when it starts to
        matter.
@@ -192,6 +200,9 @@ def resolve_self_login(threads: list[dict], author: str) -> tuple[str, str | Non
        here, which is why it is not the only source.
     3. The PR author, which is correct only when the agent opened the pull request.
     """
+    override = os.environ.get("AUTO_PR_SELF_LOGIN", "").strip()
+    if override:
+        return override, None
     for thread in threads:
         for comment in reversed((thread.get("comments") or {}).get("nodes") or []):
             if MARKER_RE.search(comment.get("body") or ""):
@@ -199,9 +210,6 @@ def resolve_self_login(threads: list[dict], author: str) -> tuple[str, str | Non
     code, out = gh_run("api", "user", "--jq", ".login")
     if code == 0 and out.strip():
         return out.strip(), None
-    override = os.environ.get("AUTO_PR_SELF_LOGIN", "").strip()
-    if override:
-        return override, None
     return author, (
         "Could not determine which account this run posts as (no marked reply yet, and "
         "`gh api user` is not available to this token — an App installation token gets 403). "
@@ -217,13 +225,20 @@ def classify_thread(thread: dict, author: str, me: str) -> dict | None:
     originator = (comments[0].get("author") or {}).get("login") or ""
     # A thread the PR author opened is not an outstanding request against the author. Judged on
     # the ORIGINATOR: our own replies are the latest comment on nearly every thread we have
-    # answered. This one really is about the AUTHOR — a thread we opened is filtered by `me`
-    # below, through the ours/theirs split.
-    if originator in (author, me):
+    # answered.
+    if originator == author:
         return None
 
     ours = [c for c in comments if ((c.get("author") or {}).get("login") or "") == me]
     theirs = [c for c in comments if ((c.get("author") or {}).get("login") or "") != me]
+    # A thread with nobody but us in it carries no outstanding request, so it must not sit
+    # `unclassified` forever. A thread we opened that someone has ANSWERED still does — and so
+    # does one we opened as a REVIEWER before this run started driving the PR, which is the
+    # ordinary shape when the operator reviewed the PR and then typed /auto-pr. Dropping on
+    # `originator == me` alone merged over exactly those, including every thread at once when
+    # the reviewing bot and the replying account share a login.
+    if originator == me and not theirs:
+        return None
     last_ours = ours[-1] if ours else None
     last_theirs = theirs[-1] if theirs else None
 

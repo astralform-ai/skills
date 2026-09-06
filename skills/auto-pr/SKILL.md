@@ -72,7 +72,7 @@ would resolve against that instead.
 | `WAIT_CHECKS` | A check is failing or running | If failing, fix. If running, schedule and stop |
 | `WAIT_REVIEW` | No review has run against the current head sha | Schedule and stop. Do not ping |
 | `MERGE` | Gate satisfied | Merge. Open nits are fine |
-| `ESCALATE` | Conflict, a human blocking, an unreviewable PR, or budget spent with blocking findings open | Stop and say why |
+| `ESCALATE` | Conflict, a human blocking, an unreviewable PR, or budget spent with a blocking finding **or a still-red check** | Stop and say why |
 
 **Always read `.warnings`.** They carry the things that would otherwise be
 silent: a review workflow whose name this repo does not use (which reads as
@@ -204,6 +204,11 @@ capsule.proc.exec('export GH_REPO=<owner/repo>; {baseDir}/scripts/pr-state.py <P
 
 Read `.verdict` and `.warnings`. Everything else is context for your reply.
 
+**A non-zero exit with no JSON is not a verdict.** The gate refuses to answer rather than guess
+when it could not read the review — a transient 502 on the thread query, say. There is nothing to
+branch on, so treat it as a wait: schedule the next iteration (step 3) with the reason, and stop.
+Never merge and never escalate on an unread gate; a re-read costs one iteration.
+
 ### 2. Act on the verdict
 
 **`CLASSIFY`** — for each thread in `.threads.unclassified`, decide its class,
@@ -294,8 +299,9 @@ Then finish the goal as complete, with the merge commit as the evidence.
 ## Stop conditions
 
 - **The user told this run not to merge.** Drive to green, then stop before step 4.
-- **`ESCALATE`.** Conflict, a human blocking, an unreviewable pull request, or
-  budget spent with blocking findings open.
+- **`ESCALATE`.** Conflict, a human blocking, an unreviewable pull request, or the round budget
+  spent with either a blocking finding still open or a check still red — a check that is red at
+  budget will not go green by waiting, though one merely still running keeps waiting.
 - **A force-push would be needed.** Rewriting history is destructive. Stop.
 - **Conflicting reviewers.** One wants X, another wants not-X, permanently.
   Surface both positions with citations.
@@ -306,10 +312,12 @@ Then finish the goal as complete, with the merge commit as the evidence.
 
 ## Gotchas
 
-- **The pull request author commenting on their own PR is not a review.** The
-  gate filters the author out of both threads and the human-blocked test. If you
-  build your own queries, do the same, or your own replies will look like an
-  unsatisfied reviewer and block the merge forever.
+- **Two different identities, and the gate keeps them apart.** The pull request AUTHOR is
+  filtered out as a thread originator and out of the human-blocked test — their own PR comments
+  are not review findings. Separately, whichever account THIS RUN posts as decides what counts as
+  "your last reply", which drives escalation detection and the markers; it is only the same login
+  as the author when the agent opened the PR. If you build your own queries, keep both apart, or
+  your own replies read as an unsatisfied reviewer and block the merge forever.
 - **`mergeable: MERGEABLE` is not "ready".** `mergeStateStatus: BLOCKED` coexists
   with it when branch protection is unsatisfied. The gate checks both.
 - **Bot logins are inconsistent across surfaces.** Some review bots lack the
