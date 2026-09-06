@@ -130,7 +130,13 @@ def gh(*args: str, check: bool = True) -> str:
     code, out = gh_run(*args)
     if code != 0:
         if check:
-            raise SystemExit(f"gh {' '.join(args)} failed (exit {code})")
+            # TEMPFAIL, not EXIT_BUG. `raise SystemExit("...")` with a STRING exits 1, and once
+            # the exits were split, 1 means "stop, this is a bug" — so a 502 or a rate limit on
+            # `gh pr view` ended the goal instead of costing one re-read. A non-zero `gh` is
+            # always a READ failure and never unusable data. The permanently-unreadable case (a
+            # wrong GH_REPO, a deleted PR) is bounded by max_no_progress_continuations.
+            sys.stderr.write(f"gh {' '.join(args)} failed (exit {code})\n")
+            raise SystemExit(EXIT_TEMPFAIL)
         return ""
     return out
 
@@ -260,13 +266,25 @@ def classify_thread(thread: dict, author: str, me: str) -> dict | None:
     # the severity precedence below already encodes it: a resolved thread is settled, our own
     # marker is settled, and anything else classifies — converging in one round, because our
     # marked reply is what settles it. A self-only thread cannot sit unclassified forever
-    # without a special case, so there is no special case.
+    # without a special case, so there is no special case. The one place that chain needs help
+    # is a SHARED login, where "a reviewer spoke after us" has no `theirs` to read; the
+    # escalation test below handles it off the marker instead.
     last_ours = ours[-1] if ours else None
     last_theirs = theirs[-1] if theirs else None
 
+    # Escalation normally means "a reviewer spoke after us". With a shared login between the
+    # reviewing bot and the replying account there is no `theirs` to compare against, and the
+    # precedence chain would settle a resolved thread the reviewer had come back to. The marker
+    # still separates the two: anything after our last MARKED comment is a new request. Scoped
+    # to the no-third-party shape so our own unmarked follow-up cannot escalate a normal thread.
     escalated = False
     if last_ours is not None and last_theirs is not None:
         escalated = (last_theirs.get("createdAt") or "") > (last_ours.get("createdAt") or "")
+    elif not theirs and ours:
+        marked_at = [
+            c.get("createdAt") or "" for c in ours if MARKER_RE.search(c.get("body") or "")
+        ]
+        escalated = bool(marked_at) and (ours[-1].get("createdAt") or "") > max(marked_at)
 
     marker = None
     if last_ours is not None:
@@ -459,7 +477,9 @@ def main() -> int:
             if pr_json.get("mergeable") != "UNKNOWN":
                 break
             time.sleep(2)
-            pr_json = gh_json("pr", "view", pr, "--json", PR_FIELDS) or pr_json
+            # check=False so the `or pr_json` fallback is reachable: a blip DURING the
+            # re-query should keep the state we already have, not end the run.
+            pr_json = gh_json("pr", "view", pr, "--json", PR_FIELDS, check=False) or pr_json
 
     url = pr_json.get("url") or ""
     match = re.search(r"github\.com/([^/]+)/([^/]+)/", url)

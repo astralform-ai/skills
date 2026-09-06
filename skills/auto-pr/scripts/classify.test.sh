@@ -30,9 +30,6 @@ PY
   else fail=$((fail+1)); printf '  FAIL %s\n         want=%s got=%s\n' "$label" "$want" "$got"; fi
 }
 
-# comment helper: {login, body, createdAt}
-T() { printf '%s' "$1"; }
-
 echo "-- ordinary reviewer threads --"
 case_ "plain reviewer comment -> unclassified" unclassified '{
   "id":"T1","isResolved":false,"isOutdated":false,"path":"src/a.py","comments":{"totalCount":1,
@@ -87,6 +84,19 @@ case_ "self-originated, resolved -> settled" settled '{
 case_ "shared login: reviewer==us, [BLOCKING] -> blocking" blocking '{
   "id":"S5","isResolved":false,"isOutdated":false,"path":"src/a.py","comments":{"totalCount":1,
   "nodes":[{"databaseId":1,"body":"[BLOCKING] race on the retry path","createdAt":"2026-01-01T00:00:00Z","author":{"login":"astralform-agent[bot]"}}]}}' \
+  "astralform-agent[bot]"
+
+case_ "shared login: reviewer returns after our marker -> unclassified" unclassified '{
+  "id":"S6","isResolved":true,"isOutdated":false,"path":"src/a.py","comments":{"totalCount":3,
+  "nodes":[{"databaseId":1,"body":"[BLOCKING] race on the retry path","createdAt":"2026-01-01T00:00:00Z","author":{"login":"astralform-agent[bot]"}},
+           {"databaseId":2,"body":"Applied in abc123. <!-- auto-pr:fixed -->","createdAt":"2026-01-01T01:00:00Z","author":{"login":"astralform-agent[bot]"}},
+           {"databaseId":3,"body":"the fix drops the last row","createdAt":"2026-01-01T02:00:00Z","author":{"login":"astralform-agent[bot]"}}]}}' \
+  "astralform-agent[bot]"
+
+case_ "shared login: our marker with nothing after it stays settled" settled '{
+  "id":"S7","isResolved":false,"isOutdated":false,"path":"src/a.py","comments":{"totalCount":2,
+  "nodes":[{"databaseId":1,"body":"[BLOCKING] race on the retry path","createdAt":"2026-01-01T00:00:00Z","author":{"login":"astralform-agent[bot]"}},
+           {"databaseId":2,"body":"Applied in abc123. <!-- auto-pr:fixed -->","createdAt":"2026-01-01T01:00:00Z","author":{"login":"astralform-agent[bot]"}}]}}' \
   "astralform-agent[bot]"
 
 echo "-- identity resolution --"
