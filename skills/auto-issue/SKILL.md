@@ -1,8 +1,8 @@
 ---
 name: auto-issue
-description: "Take a GitHub issue from open to a pull request, inside this agent's sandbox. Verifies the issue author's trust, triages whether the issue even needs a code change, writes the acceptance check BEFORE the fix and watches it fail, then clones, fixes, proves the check flips, and opens the PR. Use when someone says '/auto-issue 42', 'fix issue 42', 'take issue 42 to a PR', or 'resolve issue #42'. Requires a code-mode agent and a task bound to a project. Do NOT trigger for reading or summarising an issue — only for resolving one."
+description: "Take a GitHub issue from open to a pull request, inside this agent's sandbox. Verifies the issue author's trust, triages whether the issue even needs a code change, writes the acceptance check BEFORE the fix and watches it fail, then clones, fixes, proves the check flips, and opens the PR. Use when someone says '/auto-issue 42', 'fix issue 42', 'take issue 42 to a PR', or 'resolve issue #42'. Requires a task bound to a project (a repository). Do NOT trigger for reading or summarising an issue — only for resolving one."
 display_name: Auto Issue
-version: "2.0.0"
+version: "2.0.1"
 author: Astralform
 ---
 

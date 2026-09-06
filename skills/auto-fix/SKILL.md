@@ -1,8 +1,8 @@
 ---
 name: auto-fix
-description: "Take a reported symptom to a pull request, inside this agent's sandbox. Reproduces the symptom in a clone first, turns it into a failing acceptance check, finds the cause, fixes it minimally, proves the check flips, and opens the PR. Use when someone describes something broken and wants it fixed — '/auto-fix the sidebar flickers on reload', 'fix this timeout', 'the export button does nothing, sort it out'. Requires a code-mode agent and a task bound to a project. Do NOT trigger for explaining or investigating without fixing."
+description: "Take a reported symptom to a pull request, inside this agent's sandbox. Reproduces the symptom in a clone first, turns it into a failing acceptance check, finds the cause, fixes it minimally, proves the check flips, and opens the PR. Use when someone describes something broken and wants it fixed — '/auto-fix the sidebar flickers on reload', 'fix this timeout', 'the export button does nothing, sort it out'. Requires a task bound to a project (a repository). Do NOT trigger for explaining or investigating without fixing."
 display_name: Auto Fix
-version: "2.0.0"
+version: "2.0.1"
 author: Astralform
 ---
 
