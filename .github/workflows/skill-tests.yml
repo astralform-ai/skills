@@ -1,0 +1,54 @@
+name: Skill tests
+
+# Runs every skills/**/scripts/*.test.sh. These are the only executable specification of the
+# gate logic in auto-pr — decide_verdict and classify_thread — and classify_thread has already
+# regressed twice under review, so a green test file nobody runs is worth very little.
+#
+# Deliberately generic: any skill that ships a *.test.sh is covered without editing this file.
+
+on:
+  pull_request:
+    paths: ['skills/**']
+  push:
+    branches: [main]
+    paths: ['skills/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Syntax-check every shipped script
+        run: |
+          set -euo pipefail
+          found=0
+          while IFS= read -r f; do
+            found=$((found + 1))
+            case "$f" in
+              *.sh) bash -n "$f" ;;
+              *.py) python3 -m py_compile "$f" ;;
+            esac
+          done < <(find skills -path '*/scripts/*' \( -name '*.sh' -o -name '*.py' \) -type f)
+          echo "syntax-checked $found script(s)"
+
+      - name: Run the skill test suites
+        run: |
+          set -euo pipefail
+          # A find that matches nothing must not pass silently — these suites existing is the
+          # point, so an empty run is a failure, not a green build.
+          ran=0
+          while IFS= read -r t; do
+            echo "== $t"
+            bash "$t"
+            ran=$((ran + 1))
+          done < <(find skills -path '*/scripts/*.test.sh' -type f | sort)
+          if [ "$ran" -eq 0 ]; then
+            echo "no *.test.sh found under skills/**/scripts — expected at least one" >&2
+            exit 1
+          fi
+          echo "ran $ran suite(s)"
