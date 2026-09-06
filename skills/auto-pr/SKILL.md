@@ -204,10 +204,16 @@ capsule.proc.exec('export GH_REPO=<owner/repo>; {baseDir}/scripts/pr-state.py <P
 
 Read `.verdict` and `.warnings`. Everything else is context for your reply.
 
-**A non-zero exit with no JSON is not a verdict.** The gate refuses to answer rather than guess
-when it could not read the review — a transient 502 on the thread query, say. There is nothing to
-branch on, so treat it as a wait: schedule the next iteration (step 3) with the reason, and stop.
-Never merge and never escalate on an unread gate; a re-read costs one iteration.
+**A non-zero exit carries no JSON and is not a verdict.** The gate refuses to answer rather
+than guess, and the status says which kind of refusal it is:
+
+| Exit | Meaning | Do |
+|---|---|---|
+| `75` | It could not READ the pull request or its review — a transient 502 on the thread query, say | Schedule the next iteration (step 3) with the reason, and stop. A re-read costs one iteration |
+| `64` | A bad argument — the PR number was not a number | Stop. Re-running changes nothing |
+| `1` | It read fine but the data is unusable | Stop and quote what it printed. This is a bug, not a wait |
+
+Never merge on an unread gate, and never escalate on a `75` — waiting is what it asked for.
 
 ### 2. Act on the verdict
 

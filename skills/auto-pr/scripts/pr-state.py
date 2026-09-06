@@ -14,6 +14,10 @@ Python rather than shell + jq: ``jq`` is NOT installed in the agent's sandbox
 (only ``gh``'s built-in ``--jq``, which filters an API response and cannot
 transform local JSON). ``python3`` is. One program also beats forty subprocesses.
 
+Exit codes: 0 with JSON on stdout is the only case that carries a verdict. 75 means the gate
+could not READ the pull request or its review — transient, so schedule the next iteration and
+re-read. 64 is a bad argument and 1 is unusable data; neither is retryable, so surface those.
+
 Environment:
   GH_REPO                  owner/repo — set this; the sandbox clone may not exist yet
   AUTO_PR_ROUND_BUDGET     default 3
@@ -77,6 +81,12 @@ PR_FIELDS = (
     "url,number,state,headRefName,baseRefName,headRefOid,mergeable,"
     "mergeStateStatus,statusCheckRollup,reviews,author,files"
 )
+
+# Exit codes. The loop has to tell "come back and re-read" from "stop", and only the status is
+# available when the refusal prints no JSON — so the transient case gets its own.
+EXIT_USAGE = 64  # sysexits EX_USAGE — a bad argument. Permanent; fix the call.
+EXIT_TEMPFAIL = 75  # sysexits EX_TEMPFAIL — could not READ. Transient; schedule and re-read.
+EXIT_BUG = 1  # read fine, the data is unusable. Not retryable; surface it.
 
 FAILED_CONCLUSIONS = {"FAILURE", "TIMED_OUT", "CANCELLED", "ERROR", "STARTUP_FAILURE"}
 PENDING_STATUSES = {"IN_PROGRESS", "QUEUED", "PENDING", "WAITING"}
@@ -190,23 +200,31 @@ def resolve_self_login(threads: list[dict], author: str) -> tuple[str, str | Non
 
     Four sources, in order:
 
-    0. ``AUTO_PR_SELF_LOGIN``. FIRST, because an override exists to correct a detection that is
-       WRONG, not merely absent — consulted last it could never fix the case an operator would
-       reach for it.
-    1. A comment carrying our own `auto-pr` marker is ours whatever login posted it. Identity-
-       free, and available from the first marked reply — which is exactly when it starts to
-       matter.
-    2. `gh api user`. Right for a personal token; a GitHub App installation token gets a 403
+    1. A comment carrying our own `auto-pr` marker. This one CANNOT be wrong — the marker is
+       written by this loop, so whoever posted it is us, whatever the token thinks. It outranks
+       the override for that reason; an override that silently contradicts observed evidence is
+       worse than no override.
+    2. ``AUTO_PR_SELF_LOGIN``, ahead of the remaining detection because an override exists to
+       correct a detection that is WRONG, not merely absent — behind all of it, it could never
+       fix the case an operator would reach for it.
+    3. `gh api user`. Right for a personal token; a GitHub App installation token gets a 403
        here, which is why it is not the only source.
-    3. The PR author, which is correct only when the agent opened the pull request.
+    4. The PR author, which is correct only when the agent opened the pull request.
     """
     override = os.environ.get("AUTO_PR_SELF_LOGIN", "").strip()
-    if override:
-        return override, None
     for thread in threads:
         for comment in reversed((thread.get("comments") or {}).get("nodes") or []):
             if MARKER_RE.search(comment.get("body") or ""):
-                return (comment.get("author") or {}).get("login") or author, None
+                observed = (comment.get("author") or {}).get("login") or author
+                if override and override != observed:
+                    return observed, (
+                        f"AUTO_PR_SELF_LOGIN is {override!r}, but a reply carrying this loop's "
+                        f"own marker was posted by {observed!r}. Trusting the marker, which is "
+                        "evidence rather than configuration. Unset the override if it is stale."
+                    )
+                return observed, None
+    if override:
+        return override, None
     code, out = gh_run("api", "user", "--jq", ".login")
     if code == 0 and out.strip():
         return out.strip(), None
@@ -231,14 +249,18 @@ def classify_thread(thread: dict, author: str, me: str) -> dict | None:
 
     ours = [c for c in comments if ((c.get("author") or {}).get("login") or "") == me]
     theirs = [c for c in comments if ((c.get("author") or {}).get("login") or "") != me]
-    # A thread with nobody but us in it carries no outstanding request, so it must not sit
-    # `unclassified` forever. A thread we opened that someone has ANSWERED still does — and so
-    # does one we opened as a REVIEWER before this run started driving the PR, which is the
-    # ordinary shape when the operator reviewed the PR and then typed /auto-pr. Dropping on
-    # `originator == me` alone merged over exactly those, including every thread at once when
-    # the reviewing bot and the replying account share a login.
-    if originator == me and not theirs:
-        return None
+    # There is deliberately NO drop for a thread whose only participant is us. Two attempts at
+    # one lived here and both merged over a real finding: "we opened it" swallowed a thread the
+    # operator opened as a reviewer, and "we opened it and nobody answered" swallowed the very
+    # shape it was meant to save — an operator leaves an inline [BLOCKING] and types /auto-pr,
+    # so the thread has exactly one comment and nobody has answered YET. With a shared login
+    # between the reviewing bot and the replying account that is EVERY thread.
+    #
+    # The distinguishing fact was never "has someone else spoken" but "have WE answered", and
+    # the severity precedence below already encodes it: a resolved thread is settled, our own
+    # marker is settled, and anything else classifies — converging in one round, because our
+    # marked reply is what settles it. A self-only thread cannot sit unclassified forever
+    # without a special case, so there is no special case.
     last_ours = ours[-1] if ours else None
     last_theirs = theirs[-1] if theirs else None
 
@@ -251,7 +273,10 @@ def classify_thread(thread: dict, author: str, me: str) -> dict | None:
         found = MARKER_RE.search(last_ours.get("body") or "")
         marker = found.group(1) if found else None
 
-    reviewer_bodies = [c.get("body") or "" for c in theirs]
+    # With no third party in the thread, the request lives in OUR OWN comments — a review the
+    # operator left before this run started driving the PR. Reading severity off an empty list
+    # returns `unclassified` for an explicit [BLOCKING], so FIX_BLOCKING never fires.
+    reviewer_bodies = [c.get("body") or "" for c in (theirs or comments)]
     has_blocking = any(SEVERITY_MARKER["blocking"].search(b) for b in reviewer_bodies)
     has_nit = any(SEVERITY_MARKER["nit"].search(b) for b in reviewer_bodies)
 
@@ -407,14 +432,14 @@ def human_changes_requested(reviews: list, author: str) -> bool:
 def main() -> int:
     if len(sys.argv) < 2:
         sys.stderr.write("usage: pr-state.py <PR#>\n")
-        return 64
+        return EXIT_USAGE
     pr = sys.argv[1].strip().lstrip("#")
     # GraphQL's Int! and the output's int() both need a bare number, while `gh pr view` would
     # happily take a URL — so a URL got most of the way through, returned zero threads from the
     # GraphQL call, and died with a traceback at output time instead of saying what was wrong.
     if not pr.isdigit():
         sys.stderr.write(f"usage: pr-state.py <PR#> — expected a number, got {sys.argv[1]!r}\n")
-        return 64
+        return EXIT_USAGE
     budget = int(os.environ.get("AUTO_PR_ROUND_BUDGET", "3"))
     review_workflow = os.environ.get("AUTO_PR_REVIEW_WORKFLOW", "PR Review")
     warnings: list[str] = []
@@ -422,7 +447,7 @@ def main() -> int:
     pr_json = gh_json("pr", "view", pr, "--json", PR_FIELDS)
     if not pr_json:
         sys.stderr.write(f"could not read PR #{pr}\n")
-        return 1
+        return EXIT_TEMPFAIL
 
     # GitHub computes mergeability LAZILY: the first query on a PR whose merge
     # commit is not cached kicks off a background job and returns UNKNOWN.
@@ -440,7 +465,7 @@ def main() -> int:
     match = re.search(r"github\.com/([^/]+)/([^/]+)/", url)
     if not match:
         sys.stderr.write(f"could not parse owner/repo from {url!r}\n")
-        return 1
+        return EXIT_BUG
     owner, repo = match.group(1), match.group(2)
     head_sha = pr_json.get("headRefOid") or ""
     head_ref = pr_json.get("headRefName") or ""
@@ -549,7 +574,7 @@ def main() -> int:
             "could not read the review threads (gh exit "
             f"{threads_status}) — refusing to emit a verdict on an unread review\n"
         )
-        return 1
+        return EXIT_TEMPFAIL
     raw_threads: list[dict] = []
     total_threads = 0
     for line in pages_raw.splitlines():
