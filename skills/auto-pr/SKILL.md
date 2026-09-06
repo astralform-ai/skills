@@ -346,3 +346,21 @@ Written for this agent's **code sandbox**, which has `git`, `gh`, and `python3`.
 - Sandbox egress reaches `github.com` and `api.github.com`. A repository whose
   toolchain needs another host fails at dependency install; `gate.sh` exits 3 and
   names the host rather than letting you push an unverified fix.
+
+## Changing the gate
+
+The two pieces of judgement — the verdict chain and thread classification — live in
+`{baseDir}/scripts/pr-state.py` as `decide_verdict` and `classify_thread`, and each has a
+suite that drives that exact function rather than a copy of it:
+
+```
+{baseDir}/scripts/verdict.test.sh     # 21 cases — every way the gate could wrongly merge, hang or escalate
+{baseDir}/scripts/classify.test.sh    # 17 cases — severity precedence, escalation, identity resolution
+```
+
+Run both after any edit to either function. Each case maps to a real failure: a resolved
+thread a reviewer reopened, a `[BLOCKING]` that arrives in a follow-up comment, a pending
+legacy status context read as green, a self-originated finding the gate dropped. If you
+change a rule, make a test fail first — the fixtures are synthetic precisely so you can.
+
+CI runs both on every pull request that touches `skills/`.
