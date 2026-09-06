@@ -6,12 +6,19 @@ name: Skill tests
 #
 # Deliberately generic: any skill that ships a *.test.sh is covered without editing this file.
 
+# The workflow lists ITSELF in both filters: a PR that only edits this file is the change most
+# worth running, and without it the one thing that cannot be tested here is "does the runner
+# still work".
+#
+# Do NOT make this a required check without adding an always-running no-op job first: a
+# path-filtered `pull_request` workflow that does not run reports no status at all, so a PR
+# touching nothing under skills/ would wait forever on a check that never starts.
 on:
   pull_request:
-    paths: ['skills/**']
+    paths: ['skills/**', '.github/workflows/skill-tests.yml']
   push:
     branches: [main]
-    paths: ['skills/**']
+    paths: ['skills/**', '.github/workflows/skill-tests.yml']
   workflow_dispatch:
 
 permissions:
