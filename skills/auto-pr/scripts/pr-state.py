@@ -109,16 +109,41 @@ BOT_SUBSTRINGS = (
 )
 
 
+# ANSI SGR escape sequences (colors) that `gh` emits on PIPED output when the
+# environment forces color (FORCE_COLOR / CLICOLOR_FORCE — both set in agent
+# sandboxes). They turn `--json` output into text json.loads rejects, so the gate
+# reported a false "could not read PR" (exit 75) with healthy permissions. This is
+# the deterministic backstop for any color source; gh_run also sanitizes the child
+# env so gh does not color in the first place.
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+
+
+def _sanitize_env() -> dict[str, str]:
+    """The child env for `gh`: color off. NO_COLOR alone is NOT enough — the Go color
+    library gh uses honors FORCE_COLOR/CLICOLOR_FORCE first, so those get removed from
+    the child env even when the sandbox set them."""
+    env = dict(os.environ)
+    env.pop("FORCE_COLOR", None)
+    env.pop("CLICOLOR_FORCE", None)
+    env["NO_COLOR"] = "1"
+    return env
+
+
+def _strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", text)
+
+
 def gh_run(*args: str) -> tuple[int, str]:
     """Run `gh` and return (exit status, stdout). The status is the point: several callers
     below must tell "the API said nothing" from "the API could not be reached", and an empty
     string cannot carry that difference."""
     proc = subprocess.run(
-        ["gh", *args], capture_output=True, text=True, timeout=120  # noqa: S603,S607
+        ["gh", *args], capture_output=True, text=True, timeout=120,
+        env=_sanitize_env(),  # noqa: S603,S607
     )
     if proc.returncode != 0:
-        sys.stderr.write(proc.stderr)
-    return proc.returncode, proc.stdout
+        sys.stderr.write(_strip_ansi(proc.stderr))
+    return proc.returncode, _strip_ansi(proc.stdout)
 
 
 def gh(*args: str, check: bool = True) -> str:
