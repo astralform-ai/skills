@@ -367,5 +367,100 @@
       "featured": true,
       "required_envs": []
     }
+,
+    {
+      "id": "financial-modeling",
+      "name": "financial-modeling",
+      "display_name": "Financial Modeling",
+      "description": "Build and audit Excel financial models server-side \u2014 3-statement, DCF, LBO, merger and comps \u2014 delivered as a working .xlsx with live formulas, sensitivities and a checks sheet.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/financial-modeling",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "finance",
+        "modeling",
+        "valuation",
+        "excel"
+      ],
+      "featured": true,
+      "required_envs": []
+    },
+    {
+      "id": "equity-research",
+      "name": "equity-research",
+      "display_name": "Equity Research",
+      "description": "Public-company research product: earnings analysis, initiation and sector notes, filings extraction, catalyst and thesis tracking \u2014 written from sourced, dated figures.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/equity-research",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "finance",
+        "equity",
+        "research",
+        "analysis"
+      ],
+      "featured": true,
+      "required_envs": []
+    },
+    {
+      "id": "deal-materials",
+      "name": "deal-materials",
+      "display_name": "Deal Materials",
+      "description": "Assemble M&A process documents \u2014 CIM, teaser, process letters, buyer list and deal tracker \u2014 as staged files the deal team can edit and sign off.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/deal-materials",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "finance",
+        "investment-banking",
+        "documents"
+      ],
+      "featured": false,
+      "required_envs": []
+    },
+    {
+      "id": "pe-deal-review",
+      "name": "pe-deal-review",
+      "display_name": "PE Deal Review",
+      "description": "Private-equity decision work: screening against a stated thesis, diligence checklists, IC memos, unit economics and returns analysis with a real MOIC/IRR calculator.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/pe-deal-review",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "finance",
+        "private-equity",
+        "diligence",
+        "returns"
+      ],
+      "featured": true,
+      "required_envs": []
+    },
+    {
+      "id": "fund-operations",
+      "name": "fund-operations",
+      "display_name": "Fund Operations",
+      "description": "Fund accounting workpapers: NAV tie-outs, GL reconciliation, break tracing, accruals, roll-forwards and variance commentary where every number traces to source.",
+      "version": "1.0.0",
+      "author": "Astralform",
+      "type": "internal",
+      "path": "skills/fund-operations",
+      "logo": "logos/astralform.png",
+      "tags": [
+        "finance",
+        "accounting",
+        "reconciliation",
+        "operations"
+      ],
+      "featured": false,
+      "required_envs": []
+    }
   ]
 }
