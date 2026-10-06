@@ -372,7 +372,7 @@
       "name": "pr-review",
       "display_name": "PR Review",
       "description": "Review a pull request as the repository's reviewer: scope to the diff or the delta since the last review, report every finding as an anchored, [BLOCKING]/[NIT]-labelled data point, and end with one VERDICT line a merge driver can act on. The reviewer-side counterpart to auto-pr. Requires a task bound to a project (a repository).",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Astralform",
       "type": "internal",
       "path": "skills/pr-review",

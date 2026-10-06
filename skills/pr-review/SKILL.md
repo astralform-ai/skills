@@ -2,7 +2,7 @@
 name: pr-review
 description: "Review a pull request as the repository's reviewer: read the diff — or the delta since your last review — report every finding as an anchored, severity-labelled data point, and end with a single VERDICT line a merge driver can act on. Use when a pull request is opened, pushed, or reopened and this agent is the repo's reviewer, or when a review of a specific PR is requested. One review per push; it reports and never drives — fixing, replying, and merging are auto-pr's job. Do NOT trigger for driving a PR to merge, Q&A about a PR, or summarizing a diff with no judgement."
 display_name: PR Review
-version: "1.0.0"
+version: "1.1.0"
 author: Astralform
 ---
 
@@ -36,6 +36,7 @@ This skill and `auto-pr` are the two halves of one loop. The interface is the ma
 | A review submitted against the current head sha | Movement out of `WAIT_REVIEW` — proof a reviewer saw the final code |
 | One review per push, never two on one sha | The no-ping rule; two runs racing one sha turn green PRs red |
 | `VERDICT: CLEAN` / `VERDICT: BLOCKING — n` as the summary's last line | A cheap signal for humans scanning the tracking comment |
+| `Coverage: <n>/<m> files`, and the `coverage` object in the JSON | A human's only way to tell "read everything, found nothing" from "stopped reading" — see Coverage below |
 
 The same severity boundary runs in both skills, from the same incidents: **if you cannot name the
 input that produces the wrong output, it is not BLOCKING.**
@@ -60,14 +61,30 @@ Then the diff:
 gh pr diff <PR#>
 ```
 
-**On a re-review, scope to the delta.** Your previous review's `commit_id` is the head you last
-saw; the delta is what changed since:
+**On a re-review, scope to the delta — but only when it is still a delta.** Your previous review's
+`commit_id` is the head you last saw:
 
 ```
 gh api repos/$GH_REPO/pulls/<PR#>/reviews \
   --jq '[.[] | select(.user.login == "<your login>") | .commit_id] | last'
-git diff <previous_commit_id>..<headRefOid>    # fetch the branch first if needed
 ```
+
+Before diffing from it, prove it is an **ancestor** of the head you are reviewing:
+
+```
+git merge-base --is-ancestor <previous_commit_id> <headRefOid>   # exit 0 = a real delta
+```
+
+A force-push or a rebase makes that fail, and `git diff prev..head` is then a diff of two
+divergent trees: every finding on it would be about code this push never touched, presented as
+"the delta". Review the **whole PR** instead, exactly as a first review, and say in the summary
+that the history was rewritten — an earlier round's threads are not settled by a history that no
+longer contains them. Anything that is not a literal exit 0 is a full review; only a success
+narrows.
+
+The test needs both commits locally. A shallow clone that cannot supply the previous head has
+proven nothing either: fetch it (`git fetch origin <previous_commit_id>`) and re-test, or review
+the whole PR. "Could not prove it is a delta" and "is not a delta" take the same path.
 
 Report on the delta. Read wider for context, but do not re-raise a finding you already made — an
 open thread means the author has not replied yet, not that the point needs restating. One
@@ -94,6 +111,31 @@ Two boundary rules, because they are where this goes wrong:
 Full boundary doctrine, hunk-reading rules, and comment construction:
 `{baseDir}/references/review-doctrine.md`.
 
+## Coverage — every file in the range, accounted for
+
+A findings-only report cannot be told apart from one that read half the diff, and at scale that is
+the failure that actually happens: the reading stops early, the findings stop, and the summary
+still says CLEAN. So the report carries a ledger — one line per file the range touches:
+
+- **`reviewed`** — you read that file's diff, in full, in the range you are reviewing.
+- **`skipped: <reason>`** — there was no new content to read: the file was deleted, is binary or a
+  lockfile, or was renamed with no content change. Name which. A file you did not finish is
+  `skipped`, never silence.
+- **`total`** — every file the range touches. Full review: `gh pr diff <PR#> --name-only`. Delta:
+  `git diff --name-only <previous_commit_id>..<headRefOid>`. Take the list from the same range
+  your findings came from, or the count means nothing.
+
+`Coverage: <n>/<m> files` counts the files the ledger **accounts for** — `reviewed` plus the named
+`skipped` — over the range's total, so a deleted file or a lockfile does not read as a short
+review. State it in the summary as its own line, and list the skipped paths with their reasons
+beneath it; a skip nobody can see is the same as an omission. The JSON carries the same numbers as
+`coverage`.
+
+**A ledger is closed when every file is accounted for, and `VERDICT: CLEAN` requires a closed
+one.** If you could not finish a file, say so — a short ledger with an honest count is a report,
+and it is the one defect a reader can still catch. A CLEAN over a short ledger cannot be caught at
+all.
+
 ## Output
 
 Emit the findings as one structured block — the platform's reviewer pipeline posts inline
@@ -106,6 +148,11 @@ sees the same thing:
   "head_sha": "<headRefOid>",
   "verdict": "BLOCKING",
   "blocking_count": 1,
+  "coverage": {
+    "total": 12,
+    "reviewed": 11,
+    "skipped": [ { "file": "pnpm-lock.yaml", "reason": "lockfile" } ]
+  },
   "findings": [
     {
       "severity": "BLOCKING",
@@ -116,7 +163,7 @@ sees the same thing:
       "body": "[BLOCKING] `identity.repository_owner` is used unguarded ...\n\n<the concrete input that triggers it>"
     }
   ],
-  "summary": "<two or three sentences of overall judgement>\n\nVERDICT: BLOCKING — 1 blocking finding(s)"
+  "summary": "Coverage: 12/12 files. <two or three sentences of overall judgement>\n\nVERDICT: BLOCKING — 1 blocking finding(s)"
 }
 ```
 
@@ -125,6 +172,9 @@ sees the same thing:
 - The anchor carries the location, so `body` never repeats line numbers.
 - The `verdict` field and the `VERDICT:` line say the same thing, because they are read by
   different consumers.
+- `coverage.total` is the count of files in the reviewed range and `reviewed + skipped` must equal
+  it; `summary` opens with the same count as `Coverage: <n>/<m> files`, because the summary is what
+  a human reads and the JSON is what a pipeline reads.
 
 Posting, when the platform has not already done it — one review comment, never a comment storm:
 
@@ -151,7 +201,8 @@ gh api -X POST repos/$GH_REPO/pulls/<PR#>/reviews --input review-payload.json
 
 `VERDICT: CLEAN` is a complete review, not a failure to find anything. It is the expected outcome
 of a good PR and of most re-reviews. Never manufacture a blocking finding to avoid it, and never
-withhold it because nits remain.
+withhold it because nits remain. "Complete" is now a number: CLEAN over a ledger that does not
+close is not a CLEAN, it is a review that stopped early.
 
 ## Loop guards
 
@@ -170,6 +221,10 @@ Mechanical, not advisory. Each kills an observed failure.
    your understanding, not a thread to open. `auto-pr` filters the author the same way.
 5. **CI is not yours to restate.** Tests, types, and lint run as separate checks. Read them for
    context if you need to; never report "tests are failing" as a finding.
+6. **The ledger closes before the verdict does.** Count the files in the range, account for every
+   one of them, and only then pick a verdict. A review that stopped reading is not a smaller
+   review of the same PR — it is a different claim about it, and the ledger is what makes that
+   visible.
 
 ## Untrusted input
 
