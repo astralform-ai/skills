@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Scene stills + narration -> the finished MP4, in stages that fit the capsule.
+"""Scene stills + narration -> the finished MP4, in stages that fit the sandbox.
 
-Two capsule facts shape this script:
+Two sandbox facts shape this script:
 
-* `capsule_run_code` aborts a call at 300 s, so encoding runs in ranges you can
+* `runtime_run_code` aborts a call at 300 s, so encoding runs in ranges you can
   spread over several calls (`--stage clips --from 1 --to 6`).
 * `zoompan` exhausts the 2 GB box and the sandbox is killed, so motion is a crop
   window sliding across the render headroom — seconds per clip, flat memory.
@@ -117,7 +117,7 @@ def stage_clips(plan: dict, scenes_dir: Path, work: Path, lo: int, hi: int,
     print(f"scenes {todo[0]['index']}..{todo[-1]['index']}: "
           f"{len(pending)} to encode, {skipped} already done (~{est:.0f}s estimated)")
     if est > 260:
-        print("  NOTE: estimate is near the 300 s capsule_run_code ceiling — "
+        print("  NOTE: estimate is near the 300 s runtime_run_code ceiling — "
               "narrow the range. Re-running is safe; finished clips are skipped.")
 
     # Record how these clips were built. A clip padded for a cross-fade and a

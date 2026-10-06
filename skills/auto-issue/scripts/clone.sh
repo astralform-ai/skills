@@ -90,7 +90,7 @@ else
   git checkout -b "$BRANCH" >/dev/null 2>&1 || die "could not create branch $BRANCH"
 fi
 
-# ABSOLUTE, because each capsule.proc.exec is a fresh shell: nothing this
+# ABSOLUTE, because each runtime.proc.exec is a fresh shell: nothing this
 # script exports survives, so the caller must substitute this literal path into
 # later commands rather than expect a $REPO_DIR variable to exist.
 echo "REPO_DIR=$DEST_ABS"

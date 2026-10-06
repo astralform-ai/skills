@@ -15,7 +15,7 @@ So this skill takes two inputs and will not start without them:
 **The user recorded it.** Best quality, and the usual case for a personal
 channel. They hand you both files; most editors export an SRT.
 
-**Text-to-speech.** The capsule has no TTS engine of its own, and no browser to
+**Text-to-speech.** The sandbox has no TTS engine of its own, and no browser to
 drive a hosted one, so synthesis happens outside this skill: use whichever TTS
 the agent has a connector or API key for, then bring the audio **and the
 timings** back. Any TTS worth using returns word or sentence timings — keep
@@ -23,7 +23,7 @@ them. Ask for the SRT rather than reconstructing it.
 
 **Audio but no SRT.** Ask before doing anything else. Users often withhold an
 SRT deliberately (a draft, a re-record coming). Do not silently transcribe. And
-do not reach for a speech-recognition model inside the capsule: after ffmpeg
+do not reach for a speech-recognition model inside the sandbox: after ffmpeg
 there is roughly 750 MB of disk and 2 vCPU left, which is a bad home for one.
 Transcribe elsewhere, or ask the user to export the SRT.
 

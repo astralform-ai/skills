@@ -32,16 +32,16 @@ authenticated.
 Every shell command goes through the Python kernel:
 
 ```python
-import capsule
-r = capsule.proc.exec("gh repo view --json name", timeout=60)
+import runtime
+r = runtime.proc.exec("gh repo view --json name", timeout=60)
 r["exit_code"]   # 0 on success — ALWAYS check this
 ```
 
-`capsule.proc.exec` **never raises**. Only `exit_code` tells you a command failed, so
+`runtime.proc.exec` **never raises**. Only `exit_code` tells you a command failed, so
 check it every time or a failure will read as success.
 
 - **Always pass `timeout`.** Cells are capped at 300 seconds; anything near 240 goes
-  through `capsule.proc.run_background` and a poll.
+  through `runtime.proc.run_background` and a poll.
 - **Clone under `./work/`**, relative to the sandbox's working directory. Not `/tmp` (RAM) and not `/workspace` (a network mount).
 - **Parse JSON with `gh … --jq '…'` or `python3`.** The E2B code sandbox carries `jq`,
   a Sprites sandbox does not, and `gh --jq` works on both.
@@ -62,7 +62,7 @@ a spinner forever, and the console says `Cannot read properties of undefined`" i
 ## Step 2 — Clone and reproduce
 
 ```python
-r = capsule.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/fix-<slug>", timeout=180)
+r = runtime.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/fix-<slug>", timeout=180)
 ```
 
 Read `REPO_DIR=` from stdout. Then reproduce, in this order of preference:
@@ -104,7 +104,7 @@ Read every file before you edit it.
 Re-run the acceptance check: it must pass now and have failed before, in the same run.
 
 ```python
-r = capsule.proc.exec("{baseDir}/scripts/gate.sh --repo-dir <REPO_DIR>", timeout=280)
+r = runtime.proc.exec("{baseDir}/scripts/gate.sh --repo-dir <REPO_DIR>", timeout=280)
 ```
 
 **Exit code 2 means nothing ran**, and it is not a pass: no manifest, no lint/test script,
@@ -119,7 +119,7 @@ name the host. Do not open a PR whose tests never ran.
 ## Step 6 — Size gate, then open the PR
 
 ```python
-r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && echo THIS-SESSION && git diff --cached --stat && echo WHOLE-BRANCH && git diff --cached --stat origin/HEAD", timeout=60)
+r = runtime.proc.exec("cd <REPO_DIR> && git status --short && git add -A && echo THIS-SESSION && git diff --cached --stat && echo WHOLE-BRANCH && git diff --cached --stat origin/HEAD", timeout=60)
 ```
 
 Read the `git status --short` output first: `gate.sh` ran an install in this tree, so a
@@ -141,11 +141,11 @@ opens — and stop and ask above it. Review stops converging past that.
 Push and open the PR (the work is already staged by the size check above):
 
 ```python
-r = capsule.proc.exec(
+r = runtime.proc.exec(
     "cd <REPO_DIR> && git commit -m '<message>' && git push -u origin af/fix-<slug>",
     timeout=180,
 )
-r = capsule.proc.exec(
+r = runtime.proc.exec(
     "cd <REPO_DIR> && gh pr create --head af/fix-<slug> --title '<title>' --body '<body>'",
     timeout=120,
 )

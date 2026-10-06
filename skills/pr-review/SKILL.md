@@ -47,8 +47,8 @@ The task's repository is the pull request's repository. Export it once per run â
 fresh, and there may be no clone:
 
 ```
-import capsule
-capsule.proc.exec(
+import runtime
+runtime.proc.exec(
     'export GH_REPO=<owner/repo>; '
     'gh pr view <PR#> --json number,title,body,baseRefName,headRefName,headRefOid,author',
     timeout=60,

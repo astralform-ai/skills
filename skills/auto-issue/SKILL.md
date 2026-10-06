@@ -31,13 +31,13 @@ that repository, and `git` and `gh` are already authenticated through it.
 Every shell command goes through the Python kernel:
 
 ```python
-import capsule
-r = capsule.proc.exec("gh issue view 42 --json title", timeout=60)
+import runtime
+r = runtime.proc.exec("gh issue view 42 --json title", timeout=60)
 r["exit_code"]   # 0 on success — ALWAYS check this
 r["stdout"], r["stderr"]
 ```
 
-`capsule.proc.exec` **never raises**. A failed command returns a non-zero `exit_code` and
+`runtime.proc.exec` **never raises**. A failed command returns a non-zero `exit_code` and
 nothing else tells you. Check it on every call, or a failure reads as success and you will
 report work that did not happen.
 
@@ -45,7 +45,7 @@ Four rules the sandbox imposes:
 
 - **Always pass `timeout`.** A cell is capped at 300 seconds; a call with no timeout dies
   with the cell and you lose its output. Anything near 240 seconds goes through
-  `capsule.proc.run_background` and a poll.
+  `runtime.proc.run_background` and a poll.
 - **Clone under `./work/`**, relative to the sandbox's working directory. Not `/tmp` (it is RAM) and not `/workspace` (a network
   mount that is slow and unreliable for git objects).
 - **Parse JSON with `gh … --json … --jq '…'` or `python3`.** The E2B code sandbox does
@@ -57,7 +57,7 @@ Four rules the sandbox imposes:
 ## Step 1 — Read the issue
 
 ```python
-r = capsule.proc.exec("gh issue view 42 --json number,title,body,author,authorAssociation,labels,state", timeout=60)
+r = runtime.proc.exec("gh issue view 42 --json number,title,body,author,authorAssociation,labels,state", timeout=60)
 ```
 
 Capture the symptom, any `file:line` pointers, the suggested fix, and anything the issue
@@ -70,7 +70,7 @@ until step 2 clears the author.
 ## Step 2 — Trust the author, or stop
 
 ```python
-r = capsule.proc.exec("gh issue view 42 --json authorAssociation --jq .authorAssociation", timeout=60)
+r = runtime.proc.exec("gh issue view 42 --json authorAssociation --jq .authorAssociation", timeout=60)
 ```
 
 | `authorAssociation` | Action |
@@ -110,7 +110,7 @@ beats an hour of the wrong work.
 ## Step 4 — Clone
 
 ```python
-r = capsule.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/issue-42", timeout=180)
+r = runtime.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/issue-42", timeout=180)
 ```
 
 `clone.sh` runs `gh auth setup-git` so git uses the run's token through gh's credential
@@ -147,7 +147,7 @@ answerable with a fact.
 - Run the repo's own gate:
 
 ```python
-r = capsule.proc.exec("{baseDir}/scripts/gate.sh --repo-dir <REPO_DIR>", timeout=280)
+r = runtime.proc.exec("{baseDir}/scripts/gate.sh --repo-dir <REPO_DIR>", timeout=280)
 ```
 
 `gate.sh` detects the project's lint and test commands from `package.json`, `pyproject.toml`
@@ -170,7 +170,7 @@ test file is exactly the one it would miss. The command below prints two stats, 
 branch you resumed carries work this run did not do:
 
 ```python
-r = capsule.proc.exec("cd <REPO_DIR> && git status --short && git add -A && echo THIS-SESSION && git diff --cached --stat && echo WHOLE-BRANCH && git diff --cached --stat origin/HEAD", timeout=60)
+r = runtime.proc.exec("cd <REPO_DIR> && git status --short && git add -A && echo THIS-SESSION && git diff --cached --stat && echo WHOLE-BRANCH && git diff --cached --stat origin/HEAD", timeout=60)
 ```
 
 Read the `git status --short` output first: `gate.sh` ran an install in this tree, so a
@@ -194,7 +194,7 @@ the loop stops converging. Split into stacked PRs, or narrow the scope.
 ## Step 8 — Open the PR
 
 ```python
-r = capsule.proc.exec(
+r = runtime.proc.exec(
     "cd <REPO_DIR> && git commit -m '<message>' && git push -u origin af/issue-42",
     timeout=180,
 )
@@ -203,7 +203,7 @@ r = capsule.proc.exec(
 Then:
 
 ```python
-r = capsule.proc.exec(
+r = runtime.proc.exec(
     "cd <REPO_DIR> && gh pr create --head af/issue-42 "
     "--title '<title>' --body '<body>'",
     timeout=120,
@@ -224,7 +224,7 @@ Never commit to the default branch.
 Finally, comment the PR link back on the issue:
 
 ```python
-r = capsule.proc.exec("gh issue comment 42 --body 'Opened <pr-url>.'", timeout=60)
+r = runtime.proc.exec("gh issue comment 42 --body 'Opened <pr-url>.'", timeout=60)
 ```
 
 ## Step 9 — Report

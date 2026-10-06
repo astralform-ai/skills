@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Prepare the capsule for video work and report the real operating envelope.
+# Prepare the sandbox for video work and report the real operating envelope.
 #
-# The code capsule ships Python + Pillow + Noto CJK fonts but NOT ffmpeg, so
+# The code sandbox ships Python + Pillow + Noto CJK fonts but NOT ffmpeg, so
 # this installs it (~25s, ~650 MB) and then prints the numbers every later
 # decision depends on: free disk, RAM, cores. Run once per session; re-running
 # is cheap (apt is a no-op when already installed).

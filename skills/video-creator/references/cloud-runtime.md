@@ -1,10 +1,10 @@
 # Cloud runtime
 
-Everything here runs in the Astralform code capsule via `capsule_run_code`.
-The numbers below were measured in that capsule, not assumed — they are the
+Everything here runs in the Astralform code sandbox via `runtime_run_code`.
+The numbers below were measured in that sandbox, not assumed — they are the
 reason the pipeline is shaped the way it is.
 
-## What the capsule gives you
+## What the sandbox gives you
 
 | | |
 |---|---|
@@ -22,16 +22,16 @@ current box. Run it once per session before anything else.
 ## The five constraints that shape the pipeline
 
 **1. There is no `bash` kernel.**
-`capsule_run_code` offers `python` and `javascript` only; asking for `bash`
+`runtime_run_code` offers `python` and `javascript` only; asking for `bash`
 fails with *"The 'bash' kernel is not available"*. Every shell command therefore
 goes through the in-sandbox library from the Python kernel —
-`capsule.proc.exec("…")` — which returns `{ok, exit_code, stdout, stderr}` and
+`runtime.proc.exec("…")` — which returns `{ok, exit_code, stdout, stderr}` and
 **never raises**. An unchecked call looks like success while producing nothing,
 so check `ok` every time (that is what the `run` helper in SKILL.md is for). The
 kernel is stateful, so the helper survives between calls, and its working
 directory is `/home/user` — the same root skill files are written relative to.
 
-**2. A `capsule_run_code` call is killed at 300 seconds.**
+**2. A `runtime_run_code` call is killed at 300 seconds.**
 The backend does not override the code interpreter's `DEFAULT_TIMEOUT`, so five
 minutes is a hard ceiling per call. Encoding is therefore a stage you can run in
 ranges — `build_video.py --stage clips --from 1 --to 8`, then `--from 9` — and
@@ -85,7 +85,7 @@ run(f"python3 {SK}/scripts/verify.py ep/renders/episode.mp4 --plan ep/plan.json 
 ```
 
 (`run` and `SK` are the helper defined in SKILL.md — there is no bash kernel, so
-shell work goes through `capsule.proc.exec` from the Python kernel.)
+shell work goes through `runtime.proc.exec` from the Python kernel.)
 
 `--stage join` concatenates by stream copy and mixes the narration, so it stays
 fast no matter how long the episode is. If a clips range does abort, re-run the
@@ -96,7 +96,7 @@ If you would rather not chunk, launch the long command detached inside the
 sandbox and poll a log instead:
 
 ```python
-capsule.proc.exec(
+runtime.proc.exec(
     f"nohup setsid python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
     f"--scenes ep/scenes --stage clips > /tmp/render.log 2>&1 &")
 # then, in later short calls:
@@ -105,15 +105,15 @@ run("tail -5 /tmp/render.log")
 
 ## Getting the results out
 
-The capsule filesystem is not the deliverable, and the sandbox is disposable.
+The sandbox filesystem is not the deliverable, and the box itself is disposable.
 
 **Deliver with `export_file`.** Copy the finished master, the covers and the
 copy into `/workspace/outputs/`, then call `export_file` on each one — it
 returns a permanent link, and records the file as a conversation output so it
-renders in the UI. `capsule_download_url` returns a permanent object-storage
+renders in the UI. `runtime_download_url` returns a permanent object-storage
 link too, so it is also safe to hand over.
 
-The tool that dies with the sandbox is **`capsule_get_url`** — it maps a live
+The tool that dies with the sandbox is **`runtime_get_url`** — it maps a live
 port on the VM, so it 502s the moment the sandbox goes away. Use it to check
 your own work in a running preview, never as a deliverable.
 
