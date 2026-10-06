@@ -36,6 +36,11 @@ The hunk is the whole world, and it is not the whole world:
   Acknowledge the visible scope boundary and analyse the code shown.
 - **Report on code the PR touches.** The one re-review exception is in `SKILL.md`: a delta that
   breaks something outside itself, with both locations cited.
+- **Read to the end of the ledger.** Every file in the range is either `reviewed` or `skipped`
+  with a reason — the count is defined in `SKILL.md`. Reading is where a review fails at scale,
+  not judgement: the findings trail off on a large changeset, the verdict still says CLEAN, and
+  nothing in a findings-only report shows it. If you run out of room, name the files you did not
+  finish and say so in the summary.
 
 ## The severity boundary
 
@@ -100,6 +105,9 @@ full review round — a push, a CI cycle, and a review — of somebody's life.
 
 - `VERDICT: CLEAN — no blocking findings` or `VERDICT: BLOCKING — <n> blocking finding(s)`. The
   last line of the summary, on its own line, spelled exactly — a driver reads it mechanically.
+- **CLEAN requires a closed ledger.** `Coverage: <n>/<m> files` with every file in the range
+  accounted for (`SKILL.md`, Coverage). A review that read part of the range reports the part it
+  read; the number is what keeps the two apart, because the prose looks the same either way.
 - You are one half of an automated loop with a finite round budget. You label; the driver
   decides. A `[BLOCKING]` finding costs a full round; a `[NIT]` is recorded and merged past.
 - Do not inflate severity to force attention — nits are read.
