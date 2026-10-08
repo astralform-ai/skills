@@ -65,12 +65,15 @@ Call the **`export_file` tool** — as a tool, in its own response — with
 It is NOT part of the `runtime` library. **`export_file(...)` is not a library
 function** — no spelling reaches it from inside `runtime_run_code`: it runs on the backend,
 which the sandbox cannot call. Everything `runtime` provides is dotted through a module
-(`runtime.fs.write_file` above); the tools are underscored and invoked directly. That goes
-for the `runtime_`-prefixed tools below as well — `runtime.download_url(...)` and
-`runtime.get_url(...)` are not library functions either, and the prefix makes them the
-easiest of the three to get wrong. Confusing the two surfaces is how an export turns into
-an `AttributeError` loop instead of a delivered file — each `runtime_*` tool has a stub
-that raises `RuntimeToolError` precisely to name the tool and stop that loop.
+(`runtime.fs.write_file` above); the tools are underscored and invoked directly. The
+`runtime_`-prefixed tools below — `runtime.download_url(...)`, `runtime.get_url(...)` —
+are not library functions either, but each carries an in-sandbox stub: calling one raises
+`RuntimeToolError`, whose message names the real tool and says to call it in your next
+response, so that mistake corrects itself. `export_file` has no stub — it is not a
+`runtime_*` tool, so `runtime.export_file(...)` raises only the library's generic
+`AttributeError`, which never names the tool — the easiest of the three to get wrong, and
+the one a failed cell recovers from slowest. Confusing the two surfaces is how an export
+turns into a loop instead of a delivered file.
 
 `export_file` returns a **permanent address**. It stays valid, the file appears in the
 conversation's files list, and it survives a page refresh. Hand that link over as-is.
