@@ -2,7 +2,7 @@
 """Scene plan -> PNG stills, composited with Pillow from design tokens.
 
 One PNG per scene, rendered slightly oversize so build_video.py can pan across
-it. No browser, no Node: the capsule has Pillow and Noto CJK fonts already, and
+it. No browser, no Node: the sandbox has Pillow and Noto CJK fonts already, and
 a headless Chromium neither fits the disk nor survives the RAM.
 
 Usage:

@@ -48,11 +48,11 @@ The task's repository is the pull request's repository. Export it once per
 iteration — the sandbox is fresh every time, and there may be no clone:
 
 ```
-import capsule
-capsule.proc.exec('export GH_REPO=<owner/repo>; gh auth status', timeout=60)
+import runtime
+runtime.proc.exec('export GH_REPO=<owner/repo>; gh auth status', timeout=60)
 ```
 
-Every command below runs through `capsule.proc.exec` with `GH_REPO` set and an
+Every command below runs through `runtime.proc.exec` with `GH_REPO` set and an
 explicit `timeout`. A cell has a hard limit of about 300 seconds; a command with
 no timeout of its own dies with the cell and tells you nothing about why.
 
@@ -198,7 +198,7 @@ merging, or by stopping.
 ### 1. Read the gate
 
 ```
-capsule.proc.exec('export GH_REPO=<owner/repo>; {baseDir}/scripts/pr-state.py <PR#>',
+runtime.proc.exec('export GH_REPO=<owner/repo>; {baseDir}/scripts/pr-state.py <PR#>',
                   timeout=180)
 ```
 

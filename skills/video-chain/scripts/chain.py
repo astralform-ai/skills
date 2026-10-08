@@ -38,7 +38,7 @@ GENERATED_DIR = "/workspace/generated"
 
 # Work lives OFF the mount. /workspace is rclone, and a file written straight
 # onto it can read back complete through `cat` and truncated through the
-# platform file API — which is the API `capsule_download_url` uses to persist a
+# platform file API — which is the API `runtime_download_url` uses to persist a
 # deliverable. Staging to real disk removes that class of failure entirely.
 WORK_DIR = "/tmp/video-chain"
 

@@ -75,7 +75,7 @@ blocked_host() {
 # EMPTY_OK: an exit code from this tool that means "there was nothing to run",
 # not "what ran failed". pytest returns 5 when it collects no tests, and calling
 # that red is the same false verdict as calling a missing toolchain red — found
-# by running this script in a real capsule against a project with no tests.
+# by running this script in a real sandbox against a project with no tests.
 _exec() {
   local label="$1"; shift
   local code=0
@@ -93,7 +93,7 @@ _exec() {
     exit 3
   fi
   if [ "$code" -eq 124 ]; then
-    echo "TIMEOUT: $label exceeded ${BUDGET}s — run it with capsule.proc.run_background and poll"
+    echo "TIMEOUT: $label exceeded ${BUDGET}s — run it with runtime.proc.run_background and poll"
     exit 1
   fi
   if [ -n "${EMPTY_OK:-}" ] && [ "$code" -eq "$EMPTY_OK" ]; then

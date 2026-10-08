@@ -31,20 +31,20 @@ See `references/continuity.md` before writing the shot list.
 This skill alternates between two things that read alike and run in different
 places. Confusing them is the most common way a chain dies before it starts.
 
-|  | `capsule.<module>.<fn>` | `generate_video`, `capsule_download_url` |
+|  | `runtime.<module>.<fn>` | `generate_video`, `runtime_download_url` |
 |---|---|---|
 | What it is | a Python library inside the sandbox | tools on your tool surface |
-| How you call it | `import capsule`, inside `capsule_run_code` | a direct tool call |
+| How you call it | `import runtime`, inside `runtime_run_code` | a direct tool call |
 | Where it runs | in the VM | on the backend |
 
-Dotted is the library; underscored is a tool. **`capsule.download_url(...)` is
-not a library function** — there is no spelling that reaches that tool from
-inside `capsule_run_code`. Everything the library actually does is
-`capsule.<module>.<function>`, as in `capsule.proc.exec` or
-`capsule.fs.write_file`; run `help(capsule)` inside `capsule_run_code` for the
+Dotted is the library; underscored is a tool. **`runtime.download_url(...)` is
+not a library function** — calling it raises `RuntimeToolError`, whose message names
+the tool to call from your tool surface in the next response. Everything the library
+does is `runtime.<module>.<function>`, as in `runtime.proc.exec` or
+`runtime.fs.write_file`; run `help(runtime)` inside `runtime_run_code` for the
 module list rather than trusting one copied into a document. Neither
-`generate_video` nor `capsule_download_url` can be imported, wrapped, or shelled
-out to from inside `capsule_run_code`: they run on the backend, where the
+`generate_video` nor `runtime_download_url` can be imported, wrapped, or shelled
+out to from inside `runtime_run_code`: they run on the backend, where the
 sandbox cannot reach.
 
 Two consequences worth reading twice:
@@ -53,7 +53,7 @@ Two consequences worth reading twice:
   one script. Each segment costs three responses, and only one of them runs code
   in the sandbox — that alternation is the skill, not an inefficiency to
   optimize away.
-- **In this document, a fence marked `python` runs inside `capsule_run_code`.**
+- **In this document, a fence marked `python` runs inside `runtime_run_code`.**
   Everything else is a tool call, and is written as prose so it cannot be
   mistaken for code to paste into a cell.
 
@@ -72,14 +72,14 @@ Three preconditions, all cheap to check and expensive to discover late.
    below. If it fails on the mount, do not start a chain you cannot finish.
 
 ```python
-import capsule
+import runtime
 SK = "{baseDir}"
 
 def run(cmd, timeout=280):
     """proc.exec never raises — an unchecked call looks like success while
     producing nothing, so read the result every time. It returns
     ok / exit_code / stdout / stderr. There is no "output" key."""
-    r = capsule.proc.exec(cmd, timeout=timeout)
+    r = runtime.proc.exec(cmd, timeout=timeout)
     if r["stdout"]:
         print(r["stdout"])
     if r["stderr"]:
@@ -122,8 +122,8 @@ technical one.
 ## The loop
 
 Segment 1 is `generate_video` against the user's still. Every segment after it
-is the same three tool calls, in three separate responses: `capsule_run_code`,
-then `capsule_download_url`, then `generate_video`. Only the first of those
+is the same three tool calls, in three separate responses: `runtime_run_code`,
+then `runtime_download_url`, then `generate_video`. Only the first of those
 carries library code — that is the whole asymmetry.
 
 `chain.py` has exactly four subcommands: `preflight`, `last-frame`, `stitch`,
@@ -141,7 +141,7 @@ run(f"python3 {SK}/scripts/chain.py last-frame "
 
 **b. Turn that frame into an asset the tool can accept.** `generate_video` takes
 a `source_asset_id`, not a path, so the frame has to be recorded against this
-conversation first. Call the **`capsule_download_url` tool** — as a tool, in its
+conversation first. Call the **`runtime_download_url` tool** — as a tool, in its
 own response — with the path `/tmp/video-chain/seg-03-start.png`. There is no
 call you can add to the block above that does this; see "Two surfaces".
 
@@ -160,7 +160,7 @@ when to stop.
 **One `generate_video` call per response.** Two in one response are dispatched in
 parallel onto one GPU; you are billed for both and neither is the other's
 continuation. This is a constraint on the shape of the chain, not a cost tip —
-there is no version of it that loops inside `capsule_run_code`.
+there is no version of it that loops inside `runtime_run_code`.
 
 ## Join and deliver
 
@@ -176,7 +176,7 @@ across clips with mismatched timebases produces a file that plays perfectly and
 is seconds short — watching the opening never reveals it, which is why the check
 is not optional. A failure here names which segment disagrees.
 
-Then deliver: call the **`capsule_download_url` tool** on
+Then deliver: call the **`runtime_download_url` tool** on
 `/tmp/video-chain/final.mp4` — again a direct tool call, not something the
 `stitch` block can do on its way out.
 

@@ -22,8 +22,8 @@ Two consequences worth holding onto:
 ## Clone
 
 ```python
-import capsule
-r = capsule.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/issue-42", timeout=180)
+import runtime
+r = runtime.proc.exec("{baseDir}/scripts/clone.sh owner/repo af/issue-42", timeout=180)
 assert r["exit_code"] == 0, r["stderr"]
 ```
 
@@ -35,7 +35,7 @@ push. It is not enough to read history: `git log` shows one commit, and `git bla
 useless. If the issue turns on how something came to be, fetch what you need explicitly:
 
 ```python
-capsule.proc.exec("cd <REPO_DIR> && git fetch --depth 50 origin", timeout=120)
+runtime.proc.exec("cd <REPO_DIR> && git fetch --depth 50 origin", timeout=120)
 ```
 
 Deepen deliberately, not by default. A full fetch on a large repository can exhaust the
@@ -63,9 +63,9 @@ If the check involves a test file you added, prove the test is not vacuous: stas
 source change, run the test, watch it fail, restore.
 
 ```python
-capsule.proc.exec("cd <REPO_DIR> && git stash push -- <source-file>", timeout=60)
+runtime.proc.exec("cd <REPO_DIR> && git stash push -- <source-file>", timeout=60)
 # run just the new test — it must FAIL
-capsule.proc.exec("cd <REPO_DIR> && git stash pop", timeout=60)
+runtime.proc.exec("cd <REPO_DIR> && git stash pop", timeout=60)
 # run it again — it must PASS
 ```
 
@@ -78,9 +78,9 @@ A cell is capped at 300 seconds and `gate.sh` defaults to a 240 second budget. A
 suite can exceed both. When it does:
 
 ```python
-h = capsule.proc.run_background("cd <REPO_DIR> && npm test > /tmp/test.log 2>&1")
+h = runtime.proc.run_background("cd <REPO_DIR> && npm test > /tmp/test.log 2>&1")
 # poll, with a timeout on each poll
-capsule.proc.exec("tail -5 /tmp/test.log", timeout=30)
+runtime.proc.exec("tail -5 /tmp/test.log", timeout=30)
 ```
 
 Poll until it finishes rather than raising the cell timeout, and read the log at the end.

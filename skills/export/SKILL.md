@@ -16,12 +16,12 @@ from runs where exactly that happened.
 
 ## The one rule
 
-**Write deliverables with `capsule.fs.write_file`. Never shell redirection, never Python
+**Write deliverables with `runtime.fs.write_file`. Never shell redirection, never Python
 `open()`.**
 
 ```python
-import capsule
-capsule.fs.write_file("/workspace/outputs/report.html", html)   # correct
+import runtime
+runtime.fs.write_file("/workspace/outputs/report.html", html)   # correct
 ```
 
 ```python
@@ -43,13 +43,13 @@ and unreadable through the platform**, at the same time:
 | How you read it | What you get |
 |---|---|
 | `wc -c` / `md5sum` in the shell | 49,175 bytes, stable checksum |
-| `capsule.fs.read_file` | **4 bytes** |
+| `runtime.fs.read_file` | **4 bytes** |
 
 `export_file` uses the platform path. So the file exists, looks perfect in the shell, and
 cannot be exported — and the error says it is "still saving", which never becomes true.
 
 **Recognise it by that signature**: shell says the file is fine, the platform says it is
-empty or tiny. If you see that, rewrite the file with `capsule.fs.write_file` and export
+empty or tiny. If you see that, rewrite the file with `runtime.fs.write_file` and export
 again. Do not retry the export unchanged.
 
 ## Where to write
@@ -62,14 +62,18 @@ files list shows.
 Call the **`export_file` tool** — as a tool, in its own response — with
 `path="/workspace/outputs/report.html"` and `name="Q3 Report.html"`.
 
-It is NOT part of the `capsule` library. **`capsule.export_file(...)` is not a library
-function** — no spelling reaches it from inside `capsule_run_code`: it runs on the backend,
-which the sandbox cannot call. Everything `capsule` provides is dotted through a module
-(`capsule.fs.write_file` above); the tools are underscored and invoked directly. That goes
-for the two `capsule_`-prefixed tools below as well — `capsule.download_url(...)` and
-`capsule.get_url(...)` are not library functions either, and the prefix makes them the
-easiest of the three to get wrong. Confusing the two surfaces is how an export turns into
-an `AttributeError` loop instead of a delivered file.
+It is NOT part of the `runtime` library. **`export_file(...)` is not a library
+function** — no spelling reaches it from inside `runtime_run_code`: it runs on the backend,
+which the sandbox cannot call. Everything `runtime` provides is dotted through a module
+(`runtime.fs.write_file` above); the tools are underscored and invoked directly. The
+`runtime_`-prefixed tools below — `runtime.download_url(...)`, `runtime.get_url(...)` —
+are not library functions either, but each carries an in-sandbox stub: calling one raises
+`RuntimeToolError`, whose message names the real tool and says to call it in your next
+response, so that mistake corrects itself. `export_file` has no stub — it is not a
+`runtime_*` tool, so `runtime.export_file(...)` raises only the library's generic
+`AttributeError`, which never names the tool — the easiest of the three to get wrong, and
+the one a failed cell recovers from slowest. Confusing the two surfaces is how an export
+turns into a loop instead of a delivered file.
 
 `export_file` returns a **permanent address**. It stays valid, the file appears in the
 conversation's files list, and it survives a page refresh. Hand that link over as-is.
@@ -86,17 +90,17 @@ Two things to be accurate about when you describe it:
 | Tool | Use it for |
 |---|---|
 | `export_file` | **Deliverables.** Takes a display name; requires `/workspace/outputs/` |
-| `capsule_download_url` | The same permanent link, for a file outside `/workspace/outputs/` |
-| `capsule_get_url` | **Never for the user.** Points at the sandbox VM and dies with it |
+| `runtime_download_url` | The same permanent link, for a file outside `/workspace/outputs/` |
+| `runtime_get_url` | **Never for the user.** Points at the sandbox VM and dies with it |
 
-`export_file` and `capsule_download_url` deliver the same thing — they share one
+`export_file` and `runtime_download_url` deliver the same thing — they share one
 persist-and-confirm routine, so both give a permanent object-storage link AND list the file
 in the conversation. Reach for `export_file` by default: it takes a display name. Reach for
-`capsule_download_url` when the file is not under `/workspace/outputs/` (`export_file`
+`runtime_download_url` when the file is not under `/workspace/outputs/` (`export_file`
 hard-errors on that) or when you may call it repeatedly for one file, since it reuses the
 existing row instead of listing the file again.
 
-`capsule_get_url` is the odd one out — it maps a live **port** on the sandbox VM, not a
+`runtime_get_url` is the odd one out — it maps a live **port** on the sandbox VM, not a
 file. It is a preview for checking your own work. Handing it over produces a link that 502s
 as soon as the sandbox is reclaimed — usually minutes later, long after you have moved on.
 
@@ -106,10 +110,10 @@ Read which failure it is; they need different responses.
 
 **"hasn't finished saving to storage yet"** — a large upload may genuinely still be landing.
 Wait a few seconds and call `export_file` once more. If it repeats, treat it as the
-mount-incoherency signature above: rewrite with `capsule.fs.write_file`, then export.
+mount-incoherency signature above: rewrite with `runtime.fs.write_file`, then export.
 
 **"could not be saved to storage. STOP calling export_file"** — terminal for that file. It
-means what it says: do not retry, and do not substitute a `capsule_get_url` link. Tell the
+means what it says: do not retry, and do not substitute a `runtime_get_url` link. Tell the
 user plainly that the file could not be delivered, and if it is small, put the content
 directly in your reply.
 
@@ -118,7 +122,7 @@ Check the path.
 
 ## Common mistakes
 
-- **Handing over `capsule_get_url`** because `export_file` failed. That is the same failure
+- **Handing over `runtime_get_url`** because `export_file` failed. That is the same failure
   with a delay on it.
 - **Retrying an unchanged export** after the terminal message. The budget is spent; the
   answer will not change.

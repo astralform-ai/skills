@@ -11,9 +11,9 @@ author: Astralform
 You are the producer of a complete release, not the author of an MP4. One topic
 in; a video, its covers, and everything needed to publish it out.
 
-Everything runs in the Astralform code capsule. Before designing anything around
+Everything runs in the Astralform code sandbox. Before designing anything around
 what a video tool "normally" needs, read **`references/cloud-runtime.md`** — the
-capsule has 2 vCPU, ~2 GB RAM and no browser, and those limits decide the shape
+sandbox has 2 vCPU, ~2 GB RAM and no browser, and those limits decide the shape
 of the pipeline.
 
 ## What "done" means
@@ -39,8 +39,8 @@ only a script, resolve narration first (`references/audio.md`).
 
 ## How to run these commands
 
-**`capsule_run_code` has no `bash` kernel** — only `python` and `javascript`.
-Shell commands go through the in-sandbox `capsule` library, from Python. The
+**`runtime_run_code` has no `bash` kernel** — only `python` and `javascript`.
+Shell commands go through the in-sandbox `runtime` library, from Python. The
 kernel's working directory is `/home/user`, which is also where skill files land,
 so `{baseDir}/…` paths resolve as written. Do not `cd` away from it.
 
@@ -48,7 +48,7 @@ Define this once; the kernel keeps it for the rest of the conversation (redefine
 it if you ever get a `NameError`):
 
 ```python
-import capsule
+import runtime
 from shlex import quote as q          # ALWAYS wrap episode text in q()
 
 SK = "{baseDir}"
@@ -57,7 +57,7 @@ def run(cmd, timeout=280):
     """Run a shell command and fail loudly. proc.exec never raises — it
     reports failure in the returned dict, so an unchecked call looks like
     success while producing nothing."""
-    r = capsule.proc.exec(cmd, timeout=timeout)
+    r = runtime.proc.exec(cmd, timeout=timeout)
     if r["stdout"]:
         print(r["stdout"])
     if r["stderr"]:
@@ -68,7 +68,7 @@ def run(cmd, timeout=280):
 ```
 
 Keep `timeout` under 300 s — that is the ceiling on the whole
-`capsule_run_code` call, and overrunning it kills the call, not just the command.
+`runtime_run_code` call, and overrunning it kills the call, not just the command.
 
 **Quote every piece of episode text with `q()`.** `proc.exec` runs the string
 through a shell, and titles, subtitles and bullet points come from the user's
@@ -156,14 +156,14 @@ Re-render just what changed with `--only 4,9`.
 
 ### Step 4 · Encode
 
-Encoding is the slow stage, and **a `capsule_run_code` call is killed at 300
+Encoding is the slow stage, and **a `runtime_run_code` call is killed at 300
 seconds**, so run it in ranges — roughly 0.6 s of encoding per second of video.
 Re-running a range is safe and cheap: each finished clip is verified by length
 and skipped, and a clip interrupted mid-encode is discarded rather than left as
 a short file a later run would trust. Use `--force` to deliberately re-encode.
 
 ```python
-# one capsule_run_code call per range, so none of them hits the 300 s ceiling
+# one runtime_run_code call per range, so none of them hits the 300 s ceiling
 run(f"python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
     f"--scenes ep/scenes --stage clips --from 1 --to 8")
 run(f"python3 {SK}/scripts/build_video.py ep/plan.json --work ep/clips "
@@ -218,20 +218,20 @@ voice, with chapters derived from the scene plan. See `references/publishing.md`
 ### Step 8 · Deliver
 
 Copy the master, covers and copy into `/workspace/outputs/` and call
-`export_file` on each for permanent links. `capsule_download_url` is also
-permanent — it is `capsule_get_url` (a live port on the VM) that expires with
+`export_file` on each for permanent links. `runtime_download_url` is also
+permanent — it is `runtime_get_url` (a live port on the VM) that expires with
 the sandbox, so that one is never a deliverable. Show the contact sheet and a
 few frames inline so the user can
 judge the result without downloading anything.
 
 ## Gotchas
 
-These are measured in the capsule, not guessed. Each one fails quietly.
+These are measured in the sandbox, not guessed. Each one fails quietly.
 
 1. **`zoompan` kills the sandbox.** The classic Ken Burns filter exhausts 2 GB
    and the sandbox disappears mid-render rather than erroring. Motion is a
    sliding `crop` window; `build_video.py` already does this.
-2. **300 s per `capsule_run_code` call.** Chunk encoding with `--from/--to`, or
+2. **300 s per `runtime_run_code` call.** Chunk encoding with `--from/--to`, or
    launch it detached and poll a log (`references/cloud-runtime.md`).
 3. **No browser, and one does not fit.** Playwright's headless Chromium
    downloads 266 MB, fails to start on a missing system library, and leaves
@@ -244,7 +244,7 @@ These are measured in the capsule, not guessed. Each one fails quietly.
    index draws shared characters differently, so dropping it silently produces
    the wrong regional glyph forms. `render_scenes.py` reads the index from
    `fc-match` — do the same in any script of your own.
-6. **`capsule.proc.exec` never raises.** It reports failure in the returned
+6. **`runtime.proc.exec` never raises.** It reports failure in the returned
    dict, so an unchecked call reads as success while producing nothing. Check
    `ok` on every call; the `run` helper above does it for you.
 7. **A scene's `duration` is its on-screen time — never add a transition tail to
@@ -271,7 +271,7 @@ These are measured in the capsule, not guessed. Each one fails quietly.
 
 | To do… | Read |
 |---|---|
-| Understand the capsule's limits and how to work inside them | `references/cloud-runtime.md` |
+| Understand the sandbox's limits and how to work inside them | `references/cloud-runtime.md` |
 | Choose or add a design preset | `references/designs.md` |
 | Source narration, proofread the SRT, cut scenes | `references/audio.md` |
 | Build the five-ratio cover set | `references/covers.md` |
